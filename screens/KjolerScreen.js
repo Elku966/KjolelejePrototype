@@ -4,6 +4,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { ElegantText as Text, GlobalStyle } from '../styles/GlobalStyle';
 
+// De tre kjoler, som vises i prototypen.
+// Dataene ligger direkte i appen og hentes ikke fra en database.
 const kjoler = [
   {
     id: '1',
@@ -29,11 +31,15 @@ const kjoler = [
 ];
 
 export default function KjolerScreen({ navigation }) {
+  // Opretter en videoafspiller til videoen øverst på siden.
+  // Videoen gentages og afspilles uden lyd.
   const player = useVideoPlayer(require('../assets/modevideo.mp4'), (video) => {
     video.loop = true;
     video.muted = true;
   });
 
+  // Starter videoen, når brugeren åbner Kjoler-siden,
+  // og sætter den på pause, når brugeren forlader siden.
   useFocusEffect(
     useCallback(() => {
       player.play();
@@ -43,9 +49,11 @@ export default function KjolerScreen({ navigation }) {
 
   return (
     <View style={GlobalStyle.container}>
+      {/* FlatList viser alle kjolerne som en liste, der kan scrolles */}
       <FlatList
         data={kjoler}
         keyExtractor={(item) => item.id}
+
         ListHeaderComponent={
           <View
             style={{
@@ -62,6 +70,8 @@ export default function KjolerScreen({ navigation }) {
               contentFit="cover"
               nativeControls={false}
             />
+
+            {/* Mørkt, gennemsigtigt lag oven på videoen */}
             <View
               pointerEvents="none"
               style={{
@@ -74,11 +84,10 @@ export default function KjolerScreen({ navigation }) {
                 justifyContent: 'flex-end',
                 padding: 20,
               }}
-            >
-              
-            </View>
+            />
           </View>
         }
+
         renderItem={({ item }) => (
           <View style={GlobalStyle.card}>
             <Image
@@ -86,10 +95,12 @@ export default function KjolerScreen({ navigation }) {
               style={GlobalStyle.dressImage}
               resizeMode="cover"
             />
+
             <Text style={GlobalStyle.dressName}>{item.navn}</Text>
             <Text>Størrelser: {item.stoerrelser}</Text>
             <Text>Lejepris: {item.pris} kr.</Text>
 
+            {/* Åbner detaljesiden og sender den valgte kjole med */}
             <Pressable
               onPress={() => navigation.navigate('Detaljer', { kjole: item })}
               style={GlobalStyle.button}
