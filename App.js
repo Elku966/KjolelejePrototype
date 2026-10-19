@@ -1,42 +1,35 @@
 import React, { useState } from 'react';
-
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { elegantFont } from './styles/GlobalStyle';
 
-// Importerer appens forskellige screens
 import ForsideScreen from './screens/ForsideScreen';
 import KjolerScreen from './screens/KjolerScreen';
 import DetaljerScreen from './screens/DetaljerScreen';
 import BestillingScreen from './screens/BestillingScreen';
 import KurvScreen from './screens/KurvScreen';
+import PersonalShopperScreen from './screens/PersonalShopperScreen';
 
-// Opretter navigationen
 const Tab = createBottomTabNavigator();
 
-// Appens farver
 const GULD = '#8A6A3F';
 const BAGGRUND = '#F7F1E8';
 
 export default function App() {
-  // Gemmer alle kjoler, som kunden lægger i kurven
   const [kurv, setKurv] = useState([]);
 
-  // Tilføjer en kjole til kurven
   function tilfoejTilKurv(vare) {
     setKurv((tidligereKurv) => [
       ...tidligereKurv,
       {
         ...vare,
-        // Giver hver vare et unikt ID
         kurvId: `${Date.now()}-${Math.random()}`,
       },
     ]);
   }
 
-  // Fjerner en bestemt kjole fra kurven
   function fjernFraKurv(kurvId) {
     setKurv((tidligereKurv) =>
       tidligereKurv.filter((vare) => vare.kurvId !== kurvId)
@@ -48,50 +41,38 @@ export default function App() {
       <Tab.Navigator
         initialRouteName="Forside"
         screenOptions={({ route }) => ({
-          // Header øverst på skærmen
           headerStyle: {
             backgroundColor: GULD,
           },
-
           headerTintColor: '#FFFFFF',
-
           headerTitleStyle: {
             fontFamily: elegantFont,
             fontSize: 22,
           },
-
-          // Navigation nederst på skærmen
           tabBarActiveTintColor: GULD,
           tabBarInactiveTintColor: '#8C8984',
-
           tabBarLabelStyle: {
             fontFamily: elegantFont,
-            fontSize: 12,
+            fontSize: 11,
           },
-
           tabBarStyle: {
             backgroundColor: BAGGRUND,
           },
-
-          // Ikoner til de forskellige sider
           tabBarIcon: ({ focused, color, size }) => {
-            let iconName = 'ellipse-outline';
+            const ikoner = {
+              Forside: ['home', 'home-outline'],
+              Kjoler: ['sparkles', 'sparkles-outline'],
+              Stylist: ['chatbubbles', 'chatbubbles-outline'],
+              Detaljer: ['image', 'image-outline'],
+              Bestilling: ['bag-handle', 'bag-handle-outline'],
+              Kurv: ['cart', 'cart-outline'],
+            };
 
-            if (route.name === 'Forside') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Kjoler') {
-              iconName = focused ? 'sparkles' : 'sparkles-outline';
-            } else if (route.name === 'Detaljer') {
-              iconName = focused ? 'image' : 'image-outline';
-            } else if (route.name === 'Bestilling') {
-              iconName = focused ? 'bag-handle' : 'bag-handle-outline';
-            } else if (route.name === 'Kurv') {
-              iconName = focused ? 'cart' : 'cart-outline';
-            }
+            const ikon = ikoner[route.name];
 
             return (
               <Ionicons
-                name={iconName}
+                name={ikon[focused ? 0 : 1]}
                 size={size}
                 color={color}
               />
@@ -99,25 +80,29 @@ export default function App() {
           },
         })}
       >
-        {/* SCREEN 1: Forsiden, som vises, når appen åbnes */}
         <Tab.Screen
           name="Forside"
           component={ForsideScreen}
         />
 
-        {/* SCREEN 2: Oversigt over kjoler */}
         <Tab.Screen
           name="Kjoler"
           component={KjolerScreen}
         />
 
-        {/* SCREEN 3: Detaljer om den valgte kjole */}
+        <Tab.Screen
+          name="Stylist"
+          component={PersonalShopperScreen}
+          options={{
+            headerTitle: 'Personal shopper',
+          }}
+        />
+
         <Tab.Screen
           name="Detaljer"
           component={DetaljerScreen}
         />
 
-        {/* SCREEN 4: Bestillingssiden */}
         <Tab.Screen name="Bestilling">
           {(props) => (
             <BestillingScreen
@@ -127,14 +112,11 @@ export default function App() {
           )}
         </Tab.Screen>
 
-        {/* SCREEN 5: Kurvesiden */}
         <Tab.Screen
           name="Kurv"
           options={{
-            // Viser antallet af kjoler i kurven
             tabBarBadge:
               kurv.length > 0 ? kurv.length : undefined,
-
             tabBarBadgeStyle: {
               backgroundColor: GULD,
               color: '#FFFFFF',

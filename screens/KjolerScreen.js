@@ -14,102 +14,8 @@ import {
 
 import { KjolerStyle as styles } from '../styles/KjolerStyle';
 
-const kjoler = [
-  {
-    id: '1',
-    navn: 'Brown Gala',
-    stoerrelser: 'S, M, L',
-    pris: 899,
-    billede: require('../assets/kjole1.png'),
-    billeder: [
-      require('../assets/kjole1.png'),
-      require('../assets/IMG_9991.jpg'),
-      require('../assets/IMG_9993.jpg'),
-      require('../assets/IMG_9994.jpg'),
-    ],
-  },
-  {
-    id: '2',
-    navn: 'Champagne Elegance',
-    stoerrelser: 'XS, S, M',
-    pris: 1099,
-    billede: require('../assets/kjole2.png'),
-    billeder: [
-      require('../assets/kjole2.png'),
-      require('../assets/IMG_9995.jpg'),
-      require('../assets/IMG_9996.jpg'),
-      require('../assets/IMG_9997.jpg'),
-    ],
-  },
-  {
-    id: '3',
-    navn: 'Bronze Couture',
-    stoerrelser: 'M, L',
-    pris: 749,
-    billede: require('../assets/kjole3.png'),
-    billeder: [
-      require('../assets/kjole3.png'),
-      require('../assets/IMG_0001.jpg'),
-      require('../assets/IMG_0002.jpg'),
-      require('../assets/IMG_0003.jpg'),
-    ],
-  },
-  {
-    id: '4',
-    navn: 'Rose Blossom',
-    stoerrelser: 'S, M, L',
-    pris: 999,
-    billede: require('../assets/IMG_9977.jpg'),
-    billeder: [
-      require('../assets/IMG_9977.jpg'),
-      require('../assets/IMG_9976.jpg'),
-    ],
-  },
-  {
-    id: '5',
-    navn: 'Silver Glamour',
-    stoerrelser: 'XS, S, M',
-    pris: 1199,
-    billede: require('../assets/IMG_9978.jpg'),
-    billeder: [
-      require('../assets/IMG_9978.jpg'),
-      require('../assets/IMG_9980.jpg'),
-    ],
-  },
-  {
-    id: '6',
-    navn: 'Pistachio Dream',
-    stoerrelser: 'S, M, L',
-    pris: 999,
-    billede: require('../assets/IMG_9982.jpg'),
-    billeder: [
-      require('../assets/IMG_9982.jpg'),
-      require('../assets/IMG_9983.jpg'),
-    ],
-  },
-  {
-    id: '7',
-    navn: 'Midnight Sparkle',
-    stoerrelser: 'XS, S, M',
-    pris: 1099,
-    billede: require('../assets/IMG_9984.jpg'),
-    billeder: [
-      require('../assets/IMG_9984.jpg'),
-      require('../assets/IMG_9986.jpg'),
-    ],
-  },
-  {
-    id: '8',
-    navn: 'Burgundy Romance',
-    stoerrelser: 'S, M, L',
-    pris: 999,
-    billede: require('../assets/IMG_9988.jpg'),
-    billeder: [
-      require('../assets/IMG_9988.jpg'),
-      require('../assets/IMG_9989.jpg'),
-    ],
-  },
-];
+// Henter alle kjoler fra det fælles katalog.
+import { kjoler } from '../Data/Kjoler';
 
 // Hvert kjolekort har sit eget billedgalleri.
 function KjoleKort({ kjole, navigation }) {
@@ -172,7 +78,10 @@ function KjoleKort({ kjole, navigation }) {
               <Image
                 key={`${kjole.id}-${index}`}
                 source={billede}
-                style={[styles.billede, { width: bredde }]}
+                style={[
+                  styles.billede,
+                  { width: bredde },
+                ]}
                 resizeMode="contain"
                 accessibilityLabel={
                   `${kjole.navn}, billede ${index + 1} af ${billeder.length}`
@@ -183,7 +92,7 @@ function KjoleKort({ kjole, navigation }) {
         )}
       </View>
 
-      {/* Prikkerne viser det valgte billede og kan også trykkes på. */}
+      {/* Prikkerne viser det valgte billede og kan trykkes på. */}
       <View style={styles.prikker}>
         {billeder.map((_, index) => (
           <Pressable
