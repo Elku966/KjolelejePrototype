@@ -1,11 +1,19 @@
-import React, { useCallback } from 'react';
-import { FlatList, Image, Pressable, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { ElegantText as Text, GlobalStyle } from '../styles/GlobalStyle';
+import React, { useRef, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  View,
+} from 'react-native';
 
-// De tre kjoler, som vises i prototypen.
-// Dataene ligger direkte i appen og hentes ikke fra en database.
+import {
+  ElegantText as Text,
+  GlobalStyle,
+} from '../styles/GlobalStyle';
+
+import { KjolerStyle as styles } from '../styles/KjolerStyle';
+
 const kjoler = [
   {
     id: '1',
@@ -13,6 +21,12 @@ const kjoler = [
     stoerrelser: 'S, M, L',
     pris: 899,
     billede: require('../assets/kjole1.png'),
+    billeder: [
+      require('../assets/kjole1.png'),
+      require('../assets/IMG_9991.jpg'),
+      require('../assets/IMG_9993.jpg'),
+      require('../assets/IMG_9994.jpg'),
+    ],
   },
   {
     id: '2',
@@ -20,6 +34,12 @@ const kjoler = [
     stoerrelser: 'XS, S, M',
     pris: 1099,
     billede: require('../assets/kjole2.png'),
+    billeder: [
+      require('../assets/kjole2.png'),
+      require('../assets/IMG_9995.jpg'),
+      require('../assets/IMG_9996.jpg'),
+      require('../assets/IMG_9997.jpg'),
+    ],
   },
   {
     id: '3',
@@ -27,87 +47,212 @@ const kjoler = [
     stoerrelser: 'M, L',
     pris: 749,
     billede: require('../assets/kjole3.png'),
+    billeder: [
+      require('../assets/kjole3.png'),
+      require('../assets/IMG_0001.jpg'),
+      require('../assets/IMG_0002.jpg'),
+      require('../assets/IMG_0003.jpg'),
+    ],
+  },
+  {
+    id: '4',
+    navn: 'Rose Blossom',
+    stoerrelser: 'S, M, L',
+    pris: 999,
+    billede: require('../assets/IMG_9977.jpg'),
+    billeder: [
+      require('../assets/IMG_9977.jpg'),
+      require('../assets/IMG_9976.jpg'),
+    ],
+  },
+  {
+    id: '5',
+    navn: 'Silver Glamour',
+    stoerrelser: 'XS, S, M',
+    pris: 1199,
+    billede: require('../assets/IMG_9978.jpg'),
+    billeder: [
+      require('../assets/IMG_9978.jpg'),
+      require('../assets/IMG_9980.jpg'),
+    ],
+  },
+  {
+    id: '6',
+    navn: 'Pistachio Dream',
+    stoerrelser: 'S, M, L',
+    pris: 999,
+    billede: require('../assets/IMG_9982.jpg'),
+    billeder: [
+      require('../assets/IMG_9982.jpg'),
+      require('../assets/IMG_9983.jpg'),
+    ],
+  },
+  {
+    id: '7',
+    navn: 'Midnight Sparkle',
+    stoerrelser: 'XS, S, M',
+    pris: 1099,
+    billede: require('../assets/IMG_9984.jpg'),
+    billeder: [
+      require('../assets/IMG_9984.jpg'),
+      require('../assets/IMG_9986.jpg'),
+    ],
+  },
+  {
+    id: '8',
+    navn: 'Burgundy Romance',
+    stoerrelser: 'S, M, L',
+    pris: 999,
+    billede: require('../assets/IMG_9988.jpg'),
+    billeder: [
+      require('../assets/IMG_9988.jpg'),
+      require('../assets/IMG_9989.jpg'),
+    ],
   },
 ];
 
-export default function KjolerScreen({ navigation }) {
-  // Opretter en videoafspiller til videoen øverst på siden.
-  // Videoen gentages og afspilles uden lyd.
-  const player = useVideoPlayer(require('../assets/modevideo.mp4'), (video) => {
-    video.loop = true;
-    video.muted = true;
-  });
+// Hvert kjolekort har sit eget billedgalleri.
+function KjoleKort({ kjole, navigation }) {
+  const [bredde, setBredde] = useState(0);
+  const [valgtIndex, setValgtIndex] = useState(0);
+  const galleriRef = useRef(null);
 
-  // Starter videoen, når brugeren åbner Kjoler-siden,
-  // og sætter den på pause, når brugeren forlader siden.
-  useFocusEffect(
-    useCallback(() => {
-      player.play();
-      return () => player.pause();
-    }, [player])
-  );
+  const billeder = kjole.billeder?.length
+    ? kjole.billeder
+    : [kjole.billede];
+
+  function visBillede(index) {
+    setValgtIndex(index);
+
+    galleriRef.current?.scrollTo({
+      x: index * bredde,
+      animated: true,
+    });
+  }
+
+  function opdaterValgtBillede(event) {
+    if (bredde <= 0) return;
+
+    const position = event.nativeEvent.contentOffset.x;
+    const index = Math.round(position / bredde);
+
+    setValgtIndex(
+      Math.max(0, Math.min(index, billeder.length - 1))
+    );
+  }
 
   return (
+    <View style={GlobalStyle.card}>
+      <View
+        style={styles.billedRamme}
+        onLayout={(event) => {
+          const nyBredde = event.nativeEvent.layout.width;
+
+          if (nyBredde !== bredde) {
+            setBredde(nyBredde);
+          }
+        }}
+      >
+        {bredde > 0 && (
+          <ScrollView
+            key={bredde}
+            ref={galleriRef}
+            horizontal
+            pagingEnabled
+            directionalLockEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={opdaterValgtBillede}
+            contentOffset={{
+              x: valgtIndex * bredde,
+              y: 0,
+            }}
+            style={styles.galleri}
+          >
+            {billeder.map((billede, index) => (
+              <Image
+                key={`${kjole.id}-${index}`}
+                source={billede}
+                style={[styles.billede, { width: bredde }]}
+                resizeMode="contain"
+                accessibilityLabel={
+                  `${kjole.navn}, billede ${index + 1} af ${billeder.length}`
+                }
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Prikkerne viser det valgte billede og kan også trykkes på. */}
+      <View style={styles.prikker}>
+        {billeder.map((_, index) => (
+          <Pressable
+            key={`${kjole.id}-prik-${index}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Vis billede ${index + 1}`}
+            accessibilityState={{
+              selected: valgtIndex === index,
+            }}
+            onPress={() => visBillede(index)}
+            style={styles.prikKnap}
+          >
+            <View
+              style={[
+                styles.prik,
+                valgtIndex === index && styles.aktivPrik,
+              ]}
+            />
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.billedTekst}>
+        {valgtIndex + 1} / {billeder.length}
+        {' · Swipe for flere billeder'}
+      </Text>
+
+      <Text style={GlobalStyle.dressName}>
+        {kjole.navn}
+      </Text>
+
+      <Text>Størrelser: {kjole.stoerrelser}</Text>
+      <Text>Lejepris: {kjole.pris} kr.</Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Se ${kjole.navn}`}
+        onPress={() =>
+          navigation.navigate('Detaljer', { kjole })
+        }
+        style={GlobalStyle.button}
+      >
+        <Text style={GlobalStyle.buttonText}>
+          Se kjolen
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+export default function KjolerScreen({ navigation }) {
+  return (
     <View style={GlobalStyle.container}>
-      {/* FlatList viser alle kjolerne som en liste, der kan scrolles */}
       <FlatList
         data={kjoler}
         keyExtractor={(item) => item.id}
-
         ListHeaderComponent={
-          <View
-            style={{
-              height: 220,
-              borderRadius: 12,
-              overflow: 'hidden',
-              marginBottom: 20,
-              backgroundColor: '#493B2B',
-            }}
+          <Text
+            accessibilityRole="header"
+            style={GlobalStyle.title}
           >
-            <VideoView
-              player={player}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              nativeControls={false}
-            />
-
-            {/* Mørkt, gennemsigtigt lag oven på videoen */}
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                bottom: 0,
-                left: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                justifyContent: 'flex-end',
-                padding: 20,
-              }}
-            />
-          </View>
+            Find din næste kjole
+          </Text>
         }
-
         renderItem={({ item }) => (
-          <View style={GlobalStyle.card}>
-            <Image
-              source={item.billede}
-              style={GlobalStyle.dressImage}
-              resizeMode="cover"
-            />
-
-            <Text style={GlobalStyle.dressName}>{item.navn}</Text>
-            <Text>Størrelser: {item.stoerrelser}</Text>
-            <Text>Lejepris: {item.pris} kr.</Text>
-
-            {/* Åbner detaljesiden og sender den valgte kjole med */}
-            <Pressable
-              onPress={() => navigation.navigate('Detaljer', { kjole: item })}
-              style={GlobalStyle.button}
-            >
-              <Text style={GlobalStyle.buttonText}>Se kjolen</Text>
-            </Pressable>
-          </View>
+          <KjoleKort
+            kjole={item}
+            navigation={navigation}
+          />
         )}
       />
     </View>

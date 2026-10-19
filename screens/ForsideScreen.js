@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useVideoPlayer, VideoView } from 'expo-video';
+
 import {
   ElegantText as Text,
   GlobalStyle,
 } from '../styles/GlobalStyle';
+
 import { ForsideStyle as styles } from '../styles/ForsideStyle';
 
 const inspiration = [
@@ -22,22 +26,46 @@ const inspiration = [
 ];
 
 export default function ForsideScreen({ navigation }) {
+  // Videoen gentages og afspilles uden lyd.
+  const player = useVideoPlayer(
+    require('../assets/modevideo.mp4'),
+    (video) => {
+      video.loop = true;
+      video.muted = true;
+    }
+  );
+
+  // Afspiller videoen, når forsiden er åben.
+  // Sætter den på pause, når brugeren skifter side.
+  useFocusEffect(
+    useCallback(() => {
+      player.play();
+
+      return () => {
+        player.pause();
+      };
+    }, [player])
+  );
+
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
     >
-      <Text style={styles.brand}>KJOLELEJE</Text>
+      <Text style={styles.brand}>LUXURY RENTALS</Text>
+
       <Text style={styles.tagline}>
         Særlige kjoler. Særlige øjeblikke.
       </Text>
 
-      <Image
-        source={require('../assets/kjole2.png')}
-        style={styles.heroImage}
-        resizeMode="cover"
-        accessibilityLabel="Champagne Elegance gallakjole"
-      />
+      <View style={styles.heroVideoContainer}>
+        <VideoView
+          player={player}
+          style={styles.heroVideo}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      </View>
 
       <View style={styles.intro}>
         <Text accessibilityRole="header" style={styles.title}>
@@ -45,12 +73,11 @@ export default function ForsideScreen({ navigation }) {
         </Text>
 
         <Text style={styles.body}>
-          Find en kjole til de øjeblikke, du vil huske. Hos Kjoleleje
-          kan du leje elegante gallakjoler og gøre en særlig aften
-          til noget helt dit eget.
+          Find en kjole til de øjeblikke, du vil huske. Hos Luxury
+          Rentals kan du leje elegante gallakjoler og gøre en
+          særlig aften til noget helt dit eget.
         </Text>
 
-        {/* Åbner den eksisterende side med kjoler. */}
         <Pressable
           accessibilityRole="button"
           accessibilityHint="Åbner oversigten over kjoler"
@@ -61,12 +88,14 @@ export default function ForsideScreen({ navigation }) {
             pressed && styles.pressed,
           ]}
         >
-          <Text style={GlobalStyle.buttonText}>Se kjoler</Text>
+          <Text style={GlobalStyle.buttonText}>
+            Se kjoler
+          </Text>
         </Pressable>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.eyebrow}>OM KJOLELEJE</Text>
+        <Text style={styles.eyebrow}>OM LUXURY RENTALS</Text>
 
         <Text accessibilityRole="header" style={styles.heading}>
           En ny oplevelse i en delt garderobe
@@ -87,7 +116,6 @@ export default function ForsideScreen({ navigation }) {
           Et glimt af garderoben
         </Text>
 
-        {/* Vandret galleri med prototypens eksisterende billeder. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -101,7 +129,10 @@ export default function ForsideScreen({ navigation }) {
                 resizeMode="cover"
                 accessibilityLabel={kjole.navn}
               />
-              <Text style={styles.dressName}>{kjole.navn}</Text>
+
+              <Text style={styles.dressName}>
+                {kjole.navn}
+              </Text>
             </View>
           ))}
         </ScrollView>
