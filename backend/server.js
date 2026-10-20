@@ -2,10 +2,7 @@ const path = require('path');
 const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const OpenAI = require('openai');
-
-// NY KODE START - Stripe betaling
 const Stripe = require('stripe');
-// NY KODE SLUT - Stripe betaling
 
 require('dotenv').config({
   path: path.join(__dirname, '.env'),
@@ -13,31 +10,35 @@ require('dotenv').config({
 
 const apiKey = process.env.OPENAI_API_KEY;
 const stripeKey = process.env.STRIPE_SECRET_KEY;
+const beskyttelseConfig = require('../Data/Beskyttelse.json');
+const beskyttelseProcent = Number(beskyttelseConfig.procent) / 100;
 
-// NY KODE START - Stripe betaling
-// Holder serveren kørende, selv hvis Stripe-nøglen mangler.
-// Betalingsruterne giver i så fald en tydelig fejl.
 const harStripeKey =
   typeof stripeKey === 'string' && /^sk_(test|live)_/.test(stripeKey);
 const stripe = harStripeKey ? new Stripe(stripeKey) : null;
-// NY KODE SLUT - Stripe betaling
 
-// NY KODE START - Stripe produktkobling
-// Kobler hver kjole i appen til dens Price ID i Stripe.
 const stripeProdukter = {
-  '1': 'price_1USEFABcDe6EmKd2p5irBUqf', // Brown Gala
-  '2': 'price_1USEFnBcDe6EmKd2NfVklzHl', // Champagne Elegance
-  '3': 'price_1USEGBBcDe6EmKd2t6CBy6WD', // Bronze Couture
-  '4': 'price_1USF9aBcDe6EmKd2t4IM9809', // Rose Blossom
-  '5': 'price_1USFAABcDe6EmKd2KtY8nTlL', // Silver Glamour
-  '6': 'price_1USFAZBcDe6EmKd2dN1KCcSg', // Pistachio Dream
-  '7': 'price_1USFB4BcDe6EmKd219KIorEK', // Midnight Sparkle
-  '8': 'price_1USFBRBcDe6EmKd2JFAVbeKI', // Burgundy Romance
+  '1': 'price_1USEFABcDe6EmKd2p5irBUqf',
+  '2': 'price_1USEFnBcDe6EmKd2NfVklzHl',
+  '3': 'price_1USEGBBcDe6EmKd2t6CBy6WD',
+  '4': 'price_1USF9aBcDe6EmKd2t4IM9809',
+  '5': 'price_1USFAABcDe6EmKd2KtY8nTlL',
+  '6': 'price_1USFAZBcDe6EmKd2dN1KCcSg',
+  '7': 'price_1USFB4BcDe6EmKd219KIorEK',
+  '8': 'price_1USFBRBcDe6EmKd2JFAVbeKI',
 };
-// NY KODE SLUT - Stripe produktkobling
 
-// NY KODE START - Stripe integration
-// Tillader backend at starte uden OpenAI-nøglen.
+const stripeProduktNavne = {
+  '1': 'Brown Gala',
+  '2': 'Champagne Elegance',
+  '3': 'Bronze Couture',
+  '4': 'Rose Blossom',
+  '5': 'Silver Glamour',
+  '6': 'Pistachio Dream',
+  '7': 'Midnight Sparkle',
+  '8': 'Burgundy Romance',
+};
+
 const harOpenAIKey =
   apiKey && apiKey !== 'INDSAET_DIN_API_NOEGLE_HER';
 
@@ -48,7 +49,6 @@ const client = harOpenAIKey
       maxRetries: 0,
     })
   : null;
-// NY KODE SLUT - Stripe integration
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -59,7 +59,6 @@ app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
-// Begrænser antallet af AI-kald under afprøvning.
 app.use(
   '/shopper',
   rateLimit({
@@ -77,8 +76,6 @@ function normaliser(tekst) {
   return String(tekst).trim().toLowerCase();
 }
 
-// Kontrollerer kataloget og beholder kun tekst og tal.
-// Billeder håndteres i appen.
 function klargoerKatalog(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 50) {
     throw new Error('Ugyldigt katalog.');
@@ -176,11 +173,16 @@ app.post('/shopper', async (req, res) => {
   }
 
   try {
+    if (!client) {
+      return res.status(503).json({
+        error: 'Personal shopper mangler en OpenAI-nøgle i backend/.env.',
+      });
+    }
+
     const response = await client.responses.create({
       model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
       store: false,
       max_output_tokens: 2200,
-
       instructions: `
 Du er Luxury Rentals' personlige kjoleshopper. Svar på dansk.
 
@@ -220,12 +222,10 @@ giv et kort hjælpsomt svar, kunFiltre=false og forslag=[].
 Hold svar kort. Skriv ikke produktnavne eller antal i feltet svar;
 produkterne vises separat som kort.
       `,
-
       input: JSON.stringify({
         kundebesked: besked.trim(),
         katalog,
       }),
-
       text: {
         format: {
           type: 'json_schema',
@@ -380,17 +380,9 @@ produkterne vises separat som kort.
   }
 });
 
-// NY KODE START - Luxury Rentals returside
-// Viser en enkel afslutningsside efter Stripe Checkout.
-// Kunden lukker selv browseren og vender tilbage til Expo Go.
-// Appen kontrollerer derefter betalingsstatus hos Stripe.
-
-// Finder backend-adressen ud fra den aktuelle forbindelse.
-// Vi bruger ikke en fast IP-adresse eller et eksternt domæne.
 function findLokalBackendAdresse(req) {
-  // Host-headeren indeholder den lokale adresse, som appen faktisk brugte.
-  // socket.localAddress bliver ofte 0.0.0.0, som telefonen ikke kan åbne.
   const host = req.get('host');
+
   if (!host || /[\s/\\]/.test(host)) {
     throw new Error('Ugyldig lokal serveradresse.');
   }
@@ -398,7 +390,6 @@ function findLokalBackendAdresse(req) {
   return `http://${host}`;
 }
 
-// Viser en HTML-side i betalingsbrowseren.
 function visReturside(res, overskrift, besked, ikon) {
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.set('Cache-Control', 'no-store');
@@ -463,13 +454,9 @@ function visReturside(res, overskrift, besked, ikon) {
       <body>
         <main class="kort">
           <div class="ikon">${ikon}</div>
-
           <h1>Luxury Rentals</h1>
-
           <h2>${overskrift}</h2>
-
           <p>${besked}</p>
-
           <p class="info">
             Luk dette browservindue for at vende
             tilbage til Luxury Rentals-appen.
@@ -480,9 +467,6 @@ function visReturside(res, overskrift, besked, ikon) {
   `);
 }
 
-// Side efter gennemført Stripe Checkout.
-// Dette er IKKE i sig selv en betalingsbekræftelse.
-// Appen kontrollerer den faktiske status hos Stripe.
 app.get('/checkout-success', (req, res) => {
   visReturside(
     res,
@@ -492,7 +476,6 @@ app.get('/checkout-success', (req, res) => {
   );
 });
 
-// Side når kunden afbryder Stripe Checkout.
 app.get('/checkout-cancel', (req, res) => {
   visReturside(
     res,
@@ -502,10 +485,6 @@ app.get('/checkout-cancel', (req, res) => {
   );
 });
 
-// NY KODE SLUT - Luxury Rentals returside
-
-// NY KODE START - Stripe Checkout
-// Opretter én samlet Stripe-betaling for kjolerne i kurven.
 app.post('/create-checkout-session', async (req, res) => {
   try {
     if (!stripe) {
@@ -514,7 +493,7 @@ app.post('/create-checkout-session', async (req, res) => {
       });
     }
 
-    const { kjoleIds } = req.body || {};
+    const { kjoleIds, beskyttelseIds = [] } = req.body || {};
 
     if (
       !Array.isArray(kjoleIds) ||
@@ -531,50 +510,95 @@ app.post('/create-checkout-session', async (req, res) => {
       });
     }
 
+    const resterendeKjoler = new Map();
+    kjoleIds.forEach((id) => {
+      resterendeKjoler.set(id, (resterendeKjoler.get(id) || 0) + 1);
+    });
+
+    const gyldigeBeskyttelser =
+      Array.isArray(beskyttelseIds) &&
+      beskyttelseIds.length <= kjoleIds.length &&
+      beskyttelseIds.every((id) => {
+        if (
+          typeof id !== 'string' ||
+          !Object.hasOwn(stripeProdukter, id) ||
+          (resterendeKjoler.get(id) || 0) < 1
+        ) {
+          return false;
+        }
+
+        resterendeKjoler.set(id, resterendeKjoler.get(id) - 1);
+        return true;
+      });
+
+    if (!gyldigeBeskyttelser) {
+      return res.status(400).json({
+        error: 'Beskyttelsesvalget passer ikke til kjolerne i kurven.',
+      });
+    }
+
     const line_items = kjoleIds.map((id) => ({
       price: stripeProdukter[id],
       quantity: 1,
     }));
 
-    // NY KODE START - Lokal Stripe returadresse
-    // Finder adressen automatisk fra forbindelsen til backend.
-    // På telefonen vil det normalt være computerens lokale IP.
+    const priserMedBeskyttelse = await Promise.all(
+      beskyttelseIds.map((id) =>
+        stripe.prices.retrieve(stripeProdukter[id])
+      )
+    );
+
+    priserMedBeskyttelse.forEach((pris, index) => {
+      if (
+        !Number.isInteger(pris.unit_amount) ||
+        pris.unit_amount <= 0 ||
+        pris.currency !== 'dkk'
+      ) {
+        throw new Error(
+          'Stripe-prisen kan ikke bruges til beskyttelsesgebyr.'
+        );
+      }
+
+      const kjoleId = beskyttelseIds[index];
+
+      line_items.push({
+        price_data: {
+          currency: pris.currency,
+          unit_amount: Math.round(
+            pris.unit_amount * beskyttelseProcent
+          ),
+          product_data: {
+            name: `Beskyttelse – ${stripeProduktNavne[kjoleId]}`,
+            description:
+              `Beskyttelsesgebyr på ${beskyttelseConfig.procent} % af lejeprisen.`,
+          },
+        },
+        quantity: 1,
+      });
+    });
+
     const backendAdresse = findLokalBackendAdresse(req);
-    // NY KODE SLUT - Lokal Stripe returadresse
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items,
-
-      // NY KODE START - Luxury Rentals retursider
-      // Erstattter de midlertidige example.com-adresser.
-      // Stripe sender kunden til vores egne afslutningssider.
       success_url: `${backendAdresse}/checkout-success`,
       cancel_url: `${backendAdresse}/checkout-cancel`,
-      // NY KODE SLUT - Luxury Rentals retursider
     });
 
-    // NY KODE START - Stripe betalingsbekræftelse
     res.json({
       url: session.url,
       sessionId: session.id,
     });
-    // NY KODE SLUT - Stripe betalingsbekræftelse
-
   } catch (error) {
-    // NY KODE START - Stripe fejlfinding
     console.error('Stripe Checkout-fejl:', error.message);
-    // NY KODE SLUT - Stripe fejlfinding
 
     res.status(500).json({
       error: 'Betalingen kunne ikke oprettes. Prøv igen.',
     });
   }
 });
-// NY KODE SLUT - Stripe Checkout
 
-// NY KODE START - Kontrol af Stripe-betaling
-// Kontrollerer betalingsstatus direkte hos Stripe.
 app.get('/checkout-status/:sessionId', async (req, res) => {
   try {
     if (!stripe) {
@@ -600,7 +624,6 @@ app.get('/checkout-status/:sessionId', async (req, res) => {
       betalt: session.payment_status === 'paid',
       status: session.payment_status,
     });
-
   } catch (error) {
     console.error('Stripe statusfejl:', error.type || error.name);
 
@@ -609,10 +632,7 @@ app.get('/checkout-status/:sessionId', async (req, res) => {
     });
   }
 });
-// NY KODE SLUT - Kontrol af Stripe-betaling
 
-// Giver API-kald et tydeligt JSON-svar, hvis appen rammer en
-// betalingsrute, der ikke findes, i stedet for Express' HTML-side.
 app.use((req, res) => {
   res.status(404).json({
     error: `Backend-ruten findes ikke: ${req.method} ${req.path}`,

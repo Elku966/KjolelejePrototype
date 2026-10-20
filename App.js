@@ -54,7 +54,17 @@ export default function App() {
           tabBarInactiveTintColor: '#8C8984',
           tabBarLabelStyle: {
             fontFamily: elegantFont,
-            fontSize: 11,
+            fontSize: 10,
+            marginHorizontal: 0,
+            paddingHorizontal: 0,
+          },
+          tabBarItemStyle: {
+            flex: 1,
+            minWidth: 0,
+            paddingHorizontal: 0,
+          },
+          tabBarIconStyle: {
+            marginTop: 2,
           },
           tabBarStyle: {
             backgroundColor: BAGGRUND,
@@ -105,7 +115,10 @@ export default function App() {
           component={DetaljerScreen}
         />
 
-        <Tab.Screen name="Bestilling">
+        <Tab.Screen
+          name="Bestilling"
+          options={{ tabBarLabel: 'Bestil' }}
+        >
           {(props) => (
             <BestillingScreen
               {...props}
@@ -134,7 +147,6 @@ export default function App() {
           )}
         </Tab.Screen>
 
-        {/* Betalingssiden åbnes fra kurven, ikke fra fanebjælken. */}
         <Tab.Screen
           name="Betaling"
           options={{

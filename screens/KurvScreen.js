@@ -11,18 +11,33 @@ import {
   ElegantText as Text,
   GlobalStyle,
 } from '../styles/GlobalStyle';
+import beskyttelseConfig from '../Data/Beskyttelse.json';
 
-// Appens eksisterende guldfarve
 const GULD = '#8A6A3F';
+const BESKYTTELSE_PROCENT = Number(beskyttelseConfig.procent) / 100;
+
+function formaterPris(beloeb) {
+  const afrundet = Math.round(Number(beloeb) * 100) / 100;
+  return afrundet % 1 === 0
+    ? `${afrundet}`
+    : afrundet.toFixed(2).replace('.', ',');
+}
 
 export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
-
-  // Udregner den samlede lejepris for kjolerne
-  const samletPris = kurv.reduce((sum, vare) => {
+  const samletLejepris = kurv.reduce((sum, vare) => {
     return sum + Number(vare.kjole.pris);
   }, 0);
 
-  // Åbner Stripe-betalingssiden.
+  const samletBeskyttelsesgebyr = kurv.reduce((sum, vare) => {
+    if (!vare.beskyttelse) return sum;
+
+    return sum + Math.round(
+      Number(vare.kjole.pris) * BESKYTTELSE_PROCENT * 100
+    ) / 100;
+  }, 0);
+
+  const samletPris = samletLejepris + samletBeskyttelsesgebyr;
+
   function gaaTilBetaling() {
     navigation.navigate('Betaling');
   }
@@ -32,31 +47,24 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
       style={GlobalStyle.container}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
-
       <Text style={GlobalStyle.title}>
         Min kurv
       </Text>
 
-      {/* Hvis kunden endnu ikke har valgt en kjole */}
       {kurv.length === 0 ? (
         <View style={GlobalStyle.card}>
-          <Text>
-            Din kurv er tom.
-          </Text>
+          <Text>Din kurv er tom.</Text>
           <Text style={{ marginTop: 8 }}>
             Gå til Kjoler og find din favoritkjole.
           </Text>
         </View>
       ) : (
         <>
-          {/* Viser alle kjoler, kunden har tilføjet */}
           {kurv.map((vare) => (
             <View
               key={vare.kurvId}
               style={GlobalStyle.card}
             >
-
-              {/* Kjolens billede */}
               <Image
                 source={vare.kjole.billede}
                 contentFit="contain"
@@ -67,7 +75,6 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                 }}
               />
 
-              {/* Kjolens navn */}
               <Text style={GlobalStyle.dressName}>
                 {vare.kjole.navn}
               </Text>
@@ -94,7 +101,21 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                 Lejepris: {vare.kjole.pris} kr.
               </Text>
 
-              {/* Kunden kan fjerne kjolen fra kurven */}
+              {vare.beskyttelse && (
+                <Text
+                  style={{
+                    marginTop: 6,
+                    color: GULD,
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Beskyttelsesgebyr ({beskyttelseConfig.procent} %):{' '}
+                  {formaterPris(
+                    Number(vare.kjole.pris) * BESKYTTELSE_PROCENT
+                  )} kr.
+                </Text>
+              )}
+
               <Pressable
                 onPress={() => fjernFraKurv(vare.kurvId)}
                 style={{
@@ -114,13 +135,10 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                   Fjern fra kurv
                 </Text>
               </Pressable>
-
             </View>
           ))}
 
-          {/* Viser den samlede pris */}
           <View style={GlobalStyle.card}>
-
             <Text
               style={{
                 fontSize: 20,
@@ -138,17 +156,14 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                 fontWeight: 'bold',
               }}
             >
-              {samletPris} kr.
+              {formaterPris(samletPris)} kr.
             </Text>
 
             <Text style={{ marginTop: 8 }}>
-              Fragt og eventuel beskyttelse er ikke
-              medregnet i prisen.
+              Fragt er ikke medregnet. Valgt beskyttelse er lagt til.
             </Text>
-
           </View>
 
-          {/* Knappen til betaling */}
           <Pressable
             onPress={gaaTilBetaling}
             style={GlobalStyle.button}
@@ -157,10 +172,8 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
               Gå til betaling
             </Text>
           </Pressable>
-
         </>
       )}
-
     </ScrollView>
   );
 }

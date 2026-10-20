@@ -1,363 +1,355 @@
 import React, { useState } from 'react';
 import {
- Alert,
- Platform,
- Pressable,
- ScrollView,
- View,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ElegantText as Text } from '../styles/GlobalStyle';
+import beskyttelseConfig from '../Data/Beskyttelse.json';
 
-// Farver, der bruges flere steder på siden
 const GULD = '#8A6A3F';
 const BAGGRUND = '#F7F1E8';
+const BESKYTTELSE_PROCENT = Number(beskyttelseConfig.procent) / 100;
+
+function formaterPris(beloeb) {
+  const afrundet = Math.round(Number(beloeb) * 100) / 100;
+  return afrundet % 1 === 0
+    ? `${afrundet}`
+    : afrundet.toFixed(2).replace('.', ',');
+}
 
 export default function BestillingScreen({
- route,
- navigation,
- tilfoejTilKurv,
+  route,
+  navigation,
+  tilfoejTilKurv,
 }) {
+  const kjole = route.params?.kjole;
 
- // Henter den kjole, som brugeren valgte på den forrige side
- const kjole = route.params?.kjole;
+  const [stoerrelse, setStoerrelse] = useState('');
+  const [dato, setDato] = useState(null);
+  const [visKalender, setVisKalender] = useState(false);
+  const [beskyttelse, setBeskyttelse] = useState(false);
 
- // Gemmer brugerens valg, mens siden er åben
- const [stoerrelse, setStoerrelse] = useState('');
- const [dato, setDato] = useState(null);
- const [visKalender, setVisKalender] = useState(false);
- const [beskyttelse, setBeskyttelse] = useState(false);
+  const tidligsteDato = new Date();
+  tidligsteDato.setHours(0, 0, 0, 0);
+  tidligsteDato.setDate(tidligsteDato.getDate() + 14);
 
- // Den tidligste mulige dato er 14 dage fra i dag
- const tidligsteDato = new Date();
- tidligsteDato.setHours(0, 0, 0, 0);
- tidligsteDato.setDate(tidligsteDato.getDate() + 14);
+  function vaelgDato(event, valgtDato) {
+    if (Platform.OS === 'android') {
+      setVisKalender(false);
+    }
 
- // Gemmer den dato, som brugeren vælger i kalenderen
- function vaelgDato(event, valgtDato) {
+    if (event.type === 'dismissed') {
+      return;
+    }
 
- // På Android lukkes kalenderen automatisk efter et valg
- if (Platform.OS === 'android') {
- setVisKalender(false);
- }
+    if (valgtDato) {
+      setDato(valgtDato);
+    }
+  }
 
- // Hvis brugeren annullerer, gemmes ingen ny dato
- if (event.type === 'dismissed') {
- return;
- }
+  function sendTilKurv() {
+    if (!stoerrelse || !dato) {
+      Alert.alert(
+        'Mangler oplysninger',
+        'Vælg venligst både størrelse og dato, før du tilføjer kjolen til kurven.'
+      );
+      return;
+    }
 
- // Gemmer den valgte dato
- if (valgtDato) {
- setDato(valgtDato);
- }
- }
+    if (!kjole) {
+      Alert.alert(
+        'Ingen kjole valgt',
+        'Gå tilbage til Kjoler og vælg en kjole først.'
+      );
+      return;
+    }
 
- // NY FUNKTION:
- // Samler brugerens valg og sender dem til kurven
- function sendTilKurv() {
+    const vare = {
+      kjole,
+      stoerrelse,
+      dato: dato.toLocaleDateString('da-DK'),
+      beskyttelse,
+    };
 
- // Tjekker om kunden har valgt både størrelse og dato
- if (!stoerrelse || !dato) {
- Alert.alert(
- 'Mangler oplysninger',
- 'Vælg venligst både størrelse og dato, før du tilføjer kjolen til kurven.'
- );
- return;
- }
+    tilfoejTilKurv(vare);
 
- // Sikkerhedstjek: Der skal være valgt en kjole
- if (!kjole) {
- Alert.alert(
- 'Ingen kjole valgt',
- 'Gå tilbage til Kjoler og vælg en kjole først.'
- );
- return;
- }
+    setStoerrelse('');
+    setDato(null);
+    setBeskyttelse(false);
+    setVisKalender(false);
 
- // Samler alle oplysninger om bestillingen i ét objekt
- const vare = {
- kjole: kjole,
- stoerrelse: stoerrelse,
- dato: dato.toLocaleDateString('da-DK'),
- beskyttelse: beskyttelse,
- };
+    navigation.navigate('Kurv');
+  }
 
- // Sender varen til den fælles kurv i App.js
- tilfoejTilKurv(vare);
+  if (!kjole) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          padding: 20,
+          backgroundColor: BAGGRUND,
+        }}
+      >
+        <Text>Vælg først en kjole i Kjoler-fanen.</Text>
 
- // Nulstiller felterne efter kunden har tilføjet kjolen
- setStoerrelse('');
- setDato(null);
- setBeskyttelse(false);
- setVisKalender(false);
+        <Pressable
+          onPress={() => navigation.navigate('Kjoler')}
+          style={{
+            marginTop: 20,
+            padding: 14,
+            borderRadius: 8,
+            backgroundColor: GULD,
+          }}
+        >
+          <Text
+            style={{
+              color: 'white',
+              textAlign: 'center',
+              fontWeight: 'bold',
+            }}
+          >
+            Se kjoler
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
 
- // Sender kunden automatisk videre til KurvScreen
- navigation.navigate('Kurv');
- }
+  const stoerrelser = kjole.stoerrelser
+    .split(',')
+    .map((stoerrelse) => stoerrelse.trim());
 
- // Viser en besked, hvis brugeren åbner siden uden at have valgt en kjole
- if (!kjole) {
- return (
- <View
- style={{
- flex: 1,
- justifyContent: 'center',
- padding: 20,
- backgroundColor: BAGGRUND,
- }}
- >
- <Text>
- Vælg først en kjole i Kjoler-fanen.
- </Text>
+  const beskyttelsesgebyr = beskyttelse
+    ? Math.round(
+        Number(kjole.pris) * BESKYTTELSE_PROCENT * 100
+      ) / 100
+    : 0;
 
- <Pressable
- onPress={() => navigation.navigate('Kjoler')}
- style={{
- marginTop: 20,
- padding: 14,
- borderRadius: 8,
- backgroundColor: GULD,
- }}
- >
- <Text
- style={{
- color: 'white',
- textAlign: 'center',
- fontWeight: 'bold',
- }}
- >
- Se kjoler
- </Text>
- </Pressable>
- </View>
- );
- }
+  return (
+    <ScrollView
+      style={{
+        flex: 1,
+        backgroundColor: BAGGRUND,
+      }}
+      contentContainerStyle={{
+        padding: 20,
+        paddingBottom: 40,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: 'bold',
+        }}
+      >
+        Prøv {kjole.navn} hjemme
+      </Text>
 
- // Laver størrelserne om fra tekst til en liste
- // Eksempel: "S, M, L" bliver til ["S", "M", "L"]
- const stoerrelser = kjole.stoerrelser
- .split(',')
- .map((s) => s.trim());
+      <Text
+        style={{
+          marginTop: 24,
+          fontWeight: 'bold',
+        }}
+      >
+        Vælg størrelse
+      </Text>
 
- return (
- <ScrollView
- style={{
- flex: 1,
- backgroundColor: BAGGRUND,
- }}
- contentContainerStyle={{
- padding: 20,
- paddingBottom: 40,
- }}
- >
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          marginTop: 8,
+        }}
+      >
+        {stoerrelser.map((valg) => (
+          <Pressable
+            key={valg}
+            onPress={() => setStoerrelse(valg)}
+            style={{
+              padding: 12,
+              marginRight: 8,
+              marginBottom: 8,
+              borderRadius: 8,
+              backgroundColor: stoerrelse === valg ? GULD : 'white',
+            }}
+          >
+            <Text
+              style={{
+                color: stoerrelse === valg ? 'white' : 'black',
+              }}
+            >
+              {valg}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
- {/* OVERSKRIFT */}
- <Text
- style={{
- fontSize: 24,
- fontWeight: 'bold',
- }}
- >
- Prøv {kjole.navn} hjemme
- </Text>
+      <Text
+        style={{
+          marginTop: 24,
+          fontWeight: 'bold',
+        }}
+      >
+        Dato for begivenheden
+      </Text>
 
- {/* STØRRELSESVALG */}
- <Text
- style={{
- marginTop: 24,
- fontWeight: 'bold',
- }}
- >
- Vælg størrelse
- </Text>
+      <Pressable
+        onPress={() => setVisKalender(true)}
+        style={{
+          marginTop: 8,
+          padding: 14,
+          backgroundColor: 'white',
+          borderRadius: 8,
+        }}
+      >
+        <Text>
+          {dato
+            ? dato.toLocaleDateString('da-DK')
+            : 'Tryk for at vælge dato'}
+        </Text>
+      </Pressable>
 
- <View
- style={{
- flexDirection: 'row',
- flexWrap: 'wrap',
- marginTop: 8,
- }}
- >
- {stoerrelser.map((valg) => (
- <Pressable
- key={valg}
- onPress={() => setStoerrelse(valg)}
- style={{
- padding: 12,
- marginRight: 8,
- marginBottom: 8,
- borderRadius: 8,
- backgroundColor:
- stoerrelse === valg ? GULD : 'white',
- }}
- >
- <Text
- style={{
- color:
- stoerrelse === valg ? 'white' : 'black',
- }}
- >
- {valg}
- </Text>
- </Pressable>
- ))}
- </View>
+      {visKalender && (
+        <>
+          <DateTimePicker
+            value={dato || tidligsteDato}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            minimumDate={tidligsteDato}
+            onChange={vaelgDato}
+          />
 
- {/* DATOVALG */}
- <Text
- style={{
- marginTop: 24,
- fontWeight: 'bold',
- }}
- >
- Dato for begivenheden
- </Text>
+          {Platform.OS === 'ios' && (
+            <Pressable
+              onPress={() => setVisKalender(false)}
+              style={{ marginTop: 12 }}
+            >
+              <Text
+                style={{
+                  color: GULD,
+                  fontWeight: 'bold',
+                }}
+              >
+                Vælg denne dato
+              </Text>
+            </Pressable>
+          )}
+        </>
+      )}
 
- <Pressable
- onPress={() => setVisKalender(true)}
- style={{
- marginTop: 8,
- padding: 14,
- backgroundColor: 'white',
- borderRadius: 8,
- }}
- >
- <Text>
- {dato
- ? dato.toLocaleDateString('da-DK')
- : 'Tryk for at vælge dato'}
- </Text>
- </Pressable>
+      <Text
+        style={{
+          marginTop: 24,
+          fontWeight: 'bold',
+        }}
+      >
+        Valgfri beskyttelse
+      </Text>
 
- {/* KALENDER */}
- {visKalender && (
- <>
- <DateTimePicker
- value={dato || tidligsteDato}
- mode="date"
- display={
- Platform.OS === 'ios' ? 'inline' : 'default'
- }
- minimumDate={tidligsteDato}
- onChange={vaelgDato}
- />
+      <Text style={{ marginTop: 6 }}>
+        Valgfri beskyttelse koster {beskyttelseConfig.procent} % af
+        lejeprisen. Vilkårene for beskyttelsen skal aftales separat.
+      </Text>
 
- {/* På iPhone kan brugeren lukke kalenderen manuelt */}
- {Platform.OS === 'ios' && (
- <Pressable
- onPress={() => setVisKalender(false)}
- style={{
- marginTop: 12,
- }}
- >
- <Text
- style={{
- color: GULD,
- fontWeight: 'bold',
- }}
- >
- Vælg denne dato
- </Text>
- </Pressable>
- )}
- </>
- )}
+      <Pressable
+        onPress={() => setBeskyttelse(!beskyttelse)}
+        style={{
+          marginTop: 12,
+          padding: 14,
+          borderRadius: 8,
+          backgroundColor: beskyttelse ? GULD : 'white',
+        }}
+      >
+        <Text
+          style={{
+            color: beskyttelse ? 'white' : 'black',
+            fontWeight: 'bold',
+          }}
+        >
+          {beskyttelse ? '✓ Beskyttelse valgt' : 'Tilvælg beskyttelse'}
+        </Text>
+      </Pressable>
 
- {/* VALGFRI BESKYTTELSE */}
- <Text
- style={{
- marginTop: 24,
- fontWeight: 'bold',
- }}
- >
- Valgfri beskyttelse
- </Text>
+      {beskyttelse && (
+        <Text
+          style={{
+            marginTop: 8,
+            color: GULD,
+            fontWeight: 'bold',
+          }}
+        >
+          Beskyttelsesgebyr: {formaterPris(beskyttelsesgebyr)} kr.
+        </Text>
+      )}
 
- <Text
- style={{
- marginTop: 6,
- }}
- >
- Tænkt til mindre, hændelige skader under normal brug.
- Pris og vilkår er ikke fastlagt i prototypen.
- </Text>
+      <View
+        style={{
+          marginTop: 24,
+          padding: 16,
+          backgroundColor: 'white',
+          borderRadius: 8,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: GULD,
+          }}
+        >
+          Lejepris: {kjole.pris} kr.
+        </Text>
 
- <Pressable
- onPress={() => setBeskyttelse(!beskyttelse)}
- style={{
- marginTop: 12,
- padding: 14,
- borderRadius: 8,
- backgroundColor:
- beskyttelse ? GULD : 'white',
- }}
- >
- <Text
- style={{
- color:
- beskyttelse ? 'white' : 'black',
- fontWeight: 'bold',
- }}
- >
- {beskyttelse
- ? '✓ Beskyttelse valgt'
- : 'Tilvælg beskyttelse'}
- </Text>
- </Pressable>
+        {beskyttelse && (
+          <Text
+            style={{
+              marginTop: 8,
+              color: GULD,
+              fontWeight: 'bold',
+            }}
+          >
+            Beskyttelse ({beskyttelseConfig.procent} %):{' '}
+            {formaterPris(beskyttelsesgebyr)} kr.
+          </Text>
+        )}
 
- {/* PRIS */}
- <View
- style={{
- marginTop: 24,
- padding: 16,
- backgroundColor: 'white',
- borderRadius: 8,
- }}
- >
- <Text
- style={{
- fontSize: 18,
- fontWeight: 'bold',
- color: GULD,
- }}
- >
- Lejepris: {kjole.pris} kr.
- </Text>
+        <Text
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+          }}
+        >
+          Fragt er ikke medregnet. Beskyttelse koster{' '}
+          {beskyttelseConfig.procent} % af lejeprisen.
+        </Text>
+      </View>
 
- <Text
- style={{
- marginTop: 8,
- fontSize: 13,
- }}
- >
- Fragt og eventuel beskyttelse er ikke
- beregnet i denne prototype.
- </Text>
- </View>
-
- {/* NY KNAP: TILFØJ TIL KURV */}
- <Pressable
- onPress={sendTilKurv}
- style={{
- marginTop: 24,
- padding: 14,
- borderRadius: 8,
- backgroundColor: GULD,
- }}
- >
- <Text
- style={{
- color: 'white',
- textAlign: 'center',
- fontWeight: 'bold',
- fontSize: 16,
- }}
- >
- Tilføj til kurv
- </Text>
- </Pressable>
-
- </ScrollView>
- );
+      <Pressable
+        onPress={sendTilKurv}
+        style={{
+          marginTop: 24,
+          padding: 14,
+          borderRadius: 8,
+          backgroundColor: GULD,
+        }}
+      >
+        <Text
+          style={{
+            color: 'white',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: 16,
+          }}
+        >
+          Tilføj til kurv
+        </Text>
+      </Pressable>
+    </ScrollView>
+  );
 }
