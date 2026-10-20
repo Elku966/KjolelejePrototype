@@ -14,11 +14,12 @@ import {
 
 import { KjolerStyle as styles } from '../styles/KjolerStyle';
 
-// Henter alle kjoler fra det fælles katalog.
+//henter alle kjoler fra det fælles katalog.
 import { kjoler } from '../Data/Kjoler';
 
-// Hvert kjolekort har sit eget billedgalleri.
+//hvert kjolekort har sit eget billedgalleri.
 function KjoleKort({ kjole, navigation }) {
+  //bredden afgør sideinddelingen i galleriet; valgtIndex holder tælleren synkron.
   const [bredde, setBredde] = useState(0);
   const [valgtIndex, setValgtIndex] = useState(0);
   const galleriRef = useRef(null);
@@ -28,6 +29,7 @@ function KjoleKort({ kjole, navigation }) {
     : [kjole.billede];
 
   function visBillede(index) {
+    //prikkerne under billedet kan flytte galleriet til et bestemt foto.
     setValgtIndex(index);
 
     galleriRef.current?.scrollTo({
@@ -39,6 +41,7 @@ function KjoleKort({ kjole, navigation }) {
   function opdaterValgtBillede(event) {
     if (bredde <= 0) return;
 
+    //finder det nærmeste hele sideindeks efter et swipe.
     const position = event.nativeEvent.contentOffset.x;
     const index = Math.round(position / bredde);
 
@@ -146,6 +149,7 @@ function KjoleKort({ kjole, navigation }) {
 export default function KjolerScreen({ navigation }) {
   return (
     <View style={GlobalStyle.container}>
+      {/* FlatList viser kataloget effektivt ved kun at rendere synlige kort. */}
       <FlatList
         data={kjoler}
         keyExtractor={(item) => item.id}

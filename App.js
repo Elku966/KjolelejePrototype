@@ -19,8 +19,10 @@ const GULD = '#8A6A3F';
 const BAGGRUND = '#F7F1E8';
 
 export default function App() {
+  //kurven deles mellem fanerne, så valg og antal følger kunden rundt i appen.
   const [kurv, setKurv] = useState([]);
 
+  //læægger en bestillingslinje i kurven. Eget ID gør det muligt at skelne mellem to af samme kjole i samme kurv.
   function tilfoejTilKurv(vare) {
     setKurv((tidligereKurv) => [
       ...tidligereKurv,
@@ -31,6 +33,7 @@ export default function App() {
     ]);
   }
 
+  //fjerner kun den valgte linje, ikke andre kopier af samme kjole.
   function fjernFraKurv(kurvId) {
     setKurv((tidligereKurv) =>
       tidligereKurv.filter((vare) => vare.kurvId !== kurvId)
@@ -38,6 +41,7 @@ export default function App() {
   }
 
   return (
+    //tab-navigationen er appens fælles ramme; kurven sendes som props til de skærme, der skal vise eller ændre den.
     <NavigationContainer>
       <Tab.Navigator
         initialRouteName="Forside"
@@ -151,6 +155,7 @@ export default function App() {
           name="Betaling"
           options={{
             title: 'Betaling',
+            //betaling åbnes fra kurven, ikke som en almindelig fane.
             tabBarButton: () => null,
           }}
         >

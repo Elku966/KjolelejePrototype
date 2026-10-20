@@ -15,7 +15,7 @@ import {
 } from '../styles/GlobalStyle';
 import beskyttelseConfig from '../Data/Beskyttelse.json';
 
-// Appens eksisterende guldfarve
+//appens eksisterende guldfarve
 const GULD = '#8A6A3F';
 const BESKYTTELSE_PROCENT = Number(beskyttelseConfig.procent) / 100;
 
@@ -37,10 +37,12 @@ function formaterPris(beloeb) {
 }
 
 export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
+  //kundeoplysninger holdes i skærmens formular indtil kunden går til betaling.
   const [kunde, setKunde] = React.useState(tomKunde);
 
 
-  // Udregner den samlede lejepris for kjolerne
+  //udregner den samlede lejepris for kjolerne
+  //kurvtotalen samler lejepriser og kun de beskyttelsesgebyrer, kunden har valgt.
   const samletLejepris = kurv.reduce((sum, vare) => {
     return sum + Number(vare.kjole.pris);
   }, 0);
@@ -52,8 +54,9 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
   }, 0);
   const samletPris = samletLejepris + samletBeskyttelsesgebyr;
 
-  // Åbner Stripe-betalingssiden.
+  //åbner Stripe-betalingssiden.
   function gaaTilBetaling() {
+    //validerer oplysningerne lokalt, før de sendes videre til betalingsflowet.
     const manglerOplysninger = Object.values(kunde).some(
       (vaerdi) => !vaerdi.trim()
     );
@@ -91,10 +94,12 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
   }
 
   function opdaterKunde(felt, vaerdi) {
+    //genbruger samme opdateringsfunktion for alle formularfelterne.
     setKunde((tidligere) => ({ ...tidligere, [felt]: vaerdi }));
   }
 
   function kundeFelt(label, felt, egenskaber = {}) {
+    //bygger et ensartet inputfelt med de relevante tastaturindstillinger.
     return (
       <View key={felt} style={{ marginTop: 12 }}>
         <Text style={{ marginBottom: 6 }}>{label}</Text>

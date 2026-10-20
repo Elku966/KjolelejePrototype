@@ -27,6 +27,7 @@ export default function BestillingScreen({
   navigation,
   tilfoejTilKurv,
 }) {
+  //kjolen sendes med navigationen fra kjoleoversigten eller detaljesiden.
   const kjole = route.params?.kjole;
 
   const [stoerrelse, setStoerrelse] = useState('');
@@ -34,11 +35,13 @@ export default function BestillingScreen({
   const [visKalender, setVisKalender] = useState(false);
   const [beskyttelse, setBeskyttelse] = useState(false);
 
+  //forhindrer i prototypen, at kunden vælger en dato mindre end 14 dage væk.
   const tidligsteDato = new Date();
   tidligsteDato.setHours(0, 0, 0, 0);
   tidligsteDato.setDate(tidligsteDato.getDate() + 14);
 
   function vaelgDato(event, valgtDato) {
+    //android lukker datovælgeren med det samme; iOS har en separat knap.
     if (Platform.OS === 'android') {
       setVisKalender(false);
     }
@@ -53,6 +56,7 @@ export default function BestillingScreen({
   }
 
   function sendTilKurv() {
+    //kræver størrelsen og datoen, så kurven indeholder det, der skal bestilles.
     if (!stoerrelse || !dato) {
       Alert.alert(
         'Mangler oplysninger',
@@ -76,6 +80,7 @@ export default function BestillingScreen({
       beskyttelse,
     };
 
+    //gemmer kjolevalg og lejevalg samlet som én linje i appens kurv.
     tilfoejTilKurv(vare);
 
     setStoerrelse('');
@@ -125,6 +130,7 @@ export default function BestillingScreen({
     .split(',')
     .map((stoerrelse) => stoerrelse.trim());
 
+  //viser gebyret med ørepræcision; backend beregner også beløbet ved betaling.
   const beskyttelsesgebyr = beskyttelse
     ? Math.round(
         Number(kjole.pris) * BESKYTTELSE_PROCENT * 100

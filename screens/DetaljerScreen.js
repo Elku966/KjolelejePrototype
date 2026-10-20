@@ -9,6 +9,7 @@ import {
 } from '../styles/GlobalStyle';
 
 function KjoleGalleri({ kjole }) {
+  //holder styr på fotoet og måler visningsbredden til swipe-siderne.
   const [valgtIndex, setValgtIndex] = useState(0);
   const [bredde, setBredde] = useState(0);
   const galleriRef = useRef(null);
@@ -17,7 +18,7 @@ function KjoleGalleri({ kjole }) {
     ? kjole.billeder
     : [kjole.billede];
 
-  // Skifter til det billede, brugeren trykker på.
+  //skifter til det billede, brugeren trykker på.
   function visBillede(index) {
     setValgtIndex(index);
 
@@ -27,7 +28,7 @@ function KjoleGalleri({ kjole }) {
     });
   }
 
-  // Opdaterer tælleren, når brugeren swiper.
+  //opdaterer tælleren, når brugeren swiper.
   function opdaterBillede(event) {
     if (bredde <= 0) return;
 
@@ -44,6 +45,7 @@ function KjoleGalleri({ kjole }) {
       <View
         style={GlobalStyle.detailImage}
         onLayout={(event) => {
+          //billedets bredde bruges til at beregne, hvor langt et swipe flytter.
           const nyBredde = event.nativeEvent.layout.width;
 
           if (nyBredde !== bredde) {
@@ -132,9 +134,10 @@ function KjoleGalleri({ kjole }) {
 }
 
 export default function DetaljerScreen({ navigation, route }) {
+  //skærmen får den valgte kjole sendt med fra kjolekortet.
   const kjole = route.params?.kjole;
 
-  // Vises, hvis brugeren åbner fanen uden at vælge en kjole.
+  //vises, hvis brugeren åbner fanen uden at vælge en kjole.
   if (!kjole) {
     return (
       <View style={GlobalStyle.container}>

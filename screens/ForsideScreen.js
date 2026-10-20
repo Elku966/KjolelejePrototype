@@ -10,6 +10,7 @@ import {
 
 import { ForsideStyle as styles } from '../styles/ForsideStyle';
 
+//lille udvalgt forsmag på kataloget, vist som vandret galleri på forsiden.
 const inspiration = [
   {
     navn: 'Brown Gala',
@@ -26,7 +27,7 @@ const inspiration = [
 ];
 
 export default function ForsideScreen({ navigation }) {
-  // Videoen gentages og afspilles uden lyd.
+  //videoen gentages og afspilles uden lyd.
   const player = useVideoPlayer(
     require('../assets/modevideo.mp4'),
     (video) => {
@@ -35,8 +36,7 @@ export default function ForsideScreen({ navigation }) {
     }
   );
 
-  // Afspiller videoen, når forsiden er åben.
-  // Sætter den på pause, når brugeren skifter side.
+  //afspiller videoen, når forsiden er åben. Sætter den på pause, når brugeren skifter side.
   useFocusEffect(
     useCallback(() => {
       player.play();

@@ -1,6 +1,6 @@
 const path = require('path');
 
-// Importerer Firebase Admin SDK
+//importerer Firebase Admin SDK
 const {
 initializeApp,
 cert,
@@ -12,7 +12,7 @@ const {
 getFirestore,
 } = require('firebase-admin/firestore');
 
-// Henter din originale Firebase JSON-fil
+//servicekontoens JSON-fil giver backend adgang til Firestore. (Filen er privat og skal blive på serveren; læg den aldrig i appen eller Git.)
 const serviceAccount = require(
 path.join(
 __dirname,
@@ -20,7 +20,7 @@ __dirname,
 )
 );
 
-// Initialiserer Firebase
+//genbruger en eksisterende Admin-app, hvis modulet allerede er indlæst.
 let app;
 
 try {
@@ -43,8 +43,8 @@ error.message
 throw error;
 }
 
-// Opretter Firestore-forbindelsen
+//opretter Firestore-forbindelsen, som bestillingsfunktionerne bruger.
 const db = getFirestore(app);
 
-// Eksporterer databasen
+//eksporterer databasen
 module.exports = db;

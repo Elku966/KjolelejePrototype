@@ -1,27 +1,47 @@
-# KjolelejePrototype
+# Luxury Rentals
 
-Dette projekt er en React Native-prototype til udlejning af eksklusive gallakjoler.
+## Pakker
 
-## Funktioner
+### App
 
-- Oversigt over kjoler
-- Detaljeside for den valgte kjole
-- Valg af størrelse
-- Kalender til valg af dato
-- Mulighed for at tilvælge beskyttelse
-- Opsummering af brugerens forespørgsel
+- `@expo/vector-icons`
+- `@react-native-community/datetimepicker`
+- `@react-navigation/bottom-tabs`
+- `@react-navigation/native`
+- `@react-navigation/native-stack`
+- `expo`
+- `expo-image`
+- `expo-status-bar`
+- `expo-video`
+- `expo-web-browser`
+- `react`
+- `react-native`
+- `react-native-safe-area-context`
+- `react-native-screens`
 
-Prototypen gennemfører ikke en rigtig bestilling eller betaling.
+### Backend
 
-## Demovideo
+- `dotenv`
+- `express`
+- `express-rate-limit`
+- `openai`
+- `stripe`
+- `firebase-admin`
 
-[Se demovideoen her] https://youtube.com/shorts/f0ldQhkF118
+## Installation og opstart
 
-## Start projektet
-
-1. Installer projektets pakker og start projektet:
+Åbn terminalen i projektets hovedmappe, og kør:
 
 ```bash
 npm install
+cd backend
+npm install dotenv express express-rate-limit openai stripe firebase-admin
+cd ..
+npm run start:all
+```
 
-npx expo start
+Backendinstallationen gemmer pakkerne i `backend/package.json`, så de også kan installeres igen med `npm install` i backendmappen.
+
+Før opstart skal `backend/.env` være udfyldt med de nødvendige nøgler til OpenAI, Stripe og Firebase. Den fil indeholder private oplysninger og må ikke pushes til GitHub.
+
+Når appen starter, scan QR-koden med Expo Go på telefonen.

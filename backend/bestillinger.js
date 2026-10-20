@@ -4,10 +4,9 @@ const {
 FieldValue
 } = require('firebase-admin/firestore');
 
-// Gemmer en bestilling med Stripe Session ID
-// som dokument-ID. Det forhindrer dubletter
-// fra gentagne kald for samme Stripe-session.
+//gemmer en bestilling med Stripe Session ID som dokument-ID. Det forhindrer dubletter fra gentagne kald for samme Stripe-session.
 async function gemBestilling(session, kunde, varer) {
+//gemmer kun de oplysninger, backend skal bruge til at håndtere ordren.
 const bestilling = {
 kunde: {
 fornavn: kunde.fornavn.trim(),
@@ -33,6 +32,7 @@ status: 'afventer_betaling',
 oprettetDato: FieldValue.serverTimestamp(),
 };
 
+//create() fejler, hvis dokumentet allerede findes, så samme session ikke ved et uheld opretter en dubletbestilling.
 await db
 .collection('bestillinger')
 .doc(session.id)
@@ -43,9 +43,9 @@ console.log('Bestilling gemt:', session.id);
 return session.id;
 }
 
-// Opdaterer kun en bestilling efter
-// verificeret besked fra Stripe.
+//opdaterer kun en bestilling efter verificeret besked fra Stripe.
 async function bekraeftBetaling(session) {
+//slår dokumentet op med samme Stripe-session-ID, som blev gemt ved checkout.
 const reference = db
 .collection('bestillinger')
 .doc(session.id);
@@ -58,6 +58,7 @@ throw new Error(
 );
 }
 
+//ignorerer alle webhook-events, hvor Stripe ikke siger, at betalingen er betalt.
 if (session.payment_status !== 'paid') {
 return;
 }

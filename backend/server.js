@@ -4,13 +4,13 @@ const { rateLimit } = require('express-rate-limit');
 const OpenAI = require('openai');
 const Stripe = require('stripe');
 
-// Firebase-bestillinger
+//firebase-bestillinger
 const {
 gemBestilling,
 bekraeftBetaling,
 } = require('./bestillinger');
 
-// Indlæser Stripe og OpenAI miljøvariabler
+//indlæser Stripe og OpenAI miljøvariabler
 require('dotenv').config({
 path: path.join(__dirname, '.env'),
 });
@@ -21,7 +21,7 @@ const stripeKey = process.env.STRIPE_SECRET_KEY;
 const beskyttelseConfig = require('../Data/Beskyttelse.json');
 const beskyttelseProcent = Number(beskyttelseConfig.procent) / 100;
 
-// STRIPE OPSÆTNING
+//STRIPE OPSÆTNING
 
 const harStripeKey =
 typeof stripeKey === 'string' &&
@@ -31,7 +31,7 @@ const stripe = harStripeKey
 ? new Stripe(stripeKey)
 : null;
 
-// Kobling mellem kjoler og Stripe-produkter
+//kobling mellem kjoler og Stripe-produkter
 const stripeProdukter = {
 '1': 'price_1USEFABcDe6EmKd2p5irBUqf',
 '2': 'price_1USEFnBcDe6EmKd2NfVklzHl',
@@ -54,7 +54,7 @@ const stripeProduktNavne = {
 '8': 'Burgundy Romance',
 };
 
-// OPENAI OPSÆTNING
+//OPENAI OPSÆTNING
 
 const harOpenAIKey =
 apiKey &&
@@ -68,13 +68,14 @@ maxRetries: 0,
 })
 : null;
 
-// EXPRESS SERVER
+//EXPRESS SERVER
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
 
-// STRIPE WEBHOOK
-// Skal stå før express.json()
+//STRIPE WEBHOOK
+//Skal stå før express.json()
+//Stripe-signaturen valideres på den rå request-body, før ordren opdateres.
 
 app.post(
 '/stripe-webhook',
@@ -144,13 +145,15 @@ error: 'Der er sendt mange spørgsmål. Prøv igen om lidt.',
 })
 );
 
-// PERSONAL SHOPPER
+//PERSONAL SHOPPER
 
 function normaliser(tekst) {
 return String(tekst).trim().toLowerCase();
 }
 
 function klargoerKatalog(input) {
+
+//kontrollerer indgående data og sender kun kendte tekstfelter videre til AI'en.
 
 if (
 !Array.isArray(input) ||
@@ -233,7 +236,7 @@ begivenheder: liste('begivenheder'),
 });
 }
 
-// PERSONAL SHOPPER ENDPOINT
+//PERSONAL SHOPPER ENDPOINT
 
 app.post('/shopper', async (req, res) => {
 
@@ -273,6 +276,7 @@ error:
 }
 
 try {
+//struktureret JSON gør AI-svaret forudsigeligt for appens produktkort.
 const response = await client.responses.create({
 
 model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
@@ -449,6 +453,7 @@ stoerrelsePasser
 );
 });
 
+//filterresultatet kontrolleres mod det rigtige katalog, før forslag sendes tilbage.
 let forslag;
 
 if (resultat.kunFiltre) {
@@ -516,9 +521,10 @@ res.status(502).json({ error: besked });
 }
 });
 
-// STRIPE RETURSIDER
+//STRIPE RETURSIDER
 
 function findLokalBackendAdresse(req) {
+//bruger samme lokale adresse, som appen kaldte backend på, til Stripe-returen.
 const host = req.get('host');
 
 if (!host || /[\s/\\]/.test(host)) {
@@ -610,7 +616,7 @@ tilbage til Luxury Rentals-appen.
 `);
 }
 
-// Succes-side
+//succes-side
 app.get('/checkout-success', (req, res) => {
 visReturside(
 res,
@@ -620,7 +626,7 @@ res,
 );
 });
 
-// Annulleret betaling
+//annulleret betaling
 app.get('/checkout-cancel', (req, res) => {
 visReturside(
 res,
@@ -630,7 +636,7 @@ res,
 );
 });
 
-// RATE LIMIT PÅ CHECKOUT
+//RATE LIMIT PÅ CHECKOUT
 
 app.use(
 '/create-checkout-session',
@@ -645,7 +651,7 @@ error: 'For mange betalingsforsøg. Prøv igen senere.',
 })
 );
 
-// STRIPE CHECKOUT + FIREBASE
+//STRIPE CHECKOUT + FIREBASE
 
 app.post('/create-checkout-session', async (req, res) => {
 
@@ -664,7 +670,8 @@ kunde,
 kurvValg,
 } = req.body || {};
 
-// KONTROLLERER KUNDEOPLYSNINGER
+//KONTROLLERER KUNDEOPLYSNINGER
+//Backend gentager valideringen, fordi data fra mobilappen ikke kan betragtes som betroede.
 
 const kundeFelter = [
 'fornavn',
@@ -698,7 +705,7 @@ error:
 });
 }
 
-// KONTROLLERER KJOLER
+//KONTROLLERER KJOLER
 
 if (
 !Array.isArray(kjoleIds) ||
@@ -715,7 +722,8 @@ error: 'Kurven indeholder ugyldige kjoler.',
 });
 }
 
-// KONTROLLERER BESKYTTELSE
+//KONTROLLERER BESKYTTELSE
+//Tjekker også gentagne kjole-id'er, så hvert beskyttelsesvalg knyttes til én vare.
 
 const resterendeKjoler = new Map();
 
@@ -754,7 +762,8 @@ error:
 });
 }
 
-// KONTROLLERER STØRRELSER OG DATOER
+//KONTROLLERER STØRRELSER OG DATOER
+//sørger for, at appens linjer stemmer overens med kjolerne i betalingsanmodningen.
 
 const gyldigeKurvValg =
 Array.isArray(kurvValg) &&
@@ -801,6 +810,7 @@ quantity: 1,
 }));
 
 // Henter priser fra Stripe
+// Den autoritative Stripe-pris bruges til at beregne gebyret i øre på serveren.
 const priserMedBeskyttelse = await Promise.all(
 beskyttelseIds.map((id) =>
 stripe.prices.retrieve(stripeProdukter[id])
@@ -847,6 +857,7 @@ quantity: 1,
 const backendAdresse = findLokalBackendAdresse(req);
 
 // OPRETTER STRIPE SESSION
+// Stripe-hosted Checkout håndterer selve kortbetalingen; backend beholder hemmeligheden.
 
 const session = await stripe.checkout.sessions.create({
 mode: 'payment',
@@ -872,6 +883,7 @@ cancel_url:
 });
 
 // GEMMER BESTILLINGEN I FIREBASE
+// Gemmer bestillingen med session-id, så webhooken senere kan finde den igen.
 
 const varer = kurvValg.map((vare) => ({
 kjoleId: vare.kjoleId,
@@ -915,6 +927,7 @@ error:
 });
 
 // KONTROLLERER STRIPE BETALINGSSTATUS
+// Klienten får kun status fra Stripe; webhooken opdaterer selve Firestore-ordren.
 
 app.get(
 '/checkout-status/:sessionId',

@@ -1,13 +1,13 @@
-// Fælles kjolekatalog til appen.
-//
-// Farver og beskrivelser er vurderet ud fra billederne.
-// Begivenheder er inspirationsforslag, ikke faste dresscodes.
-// Priser og størrelser skal bekræftes af jer før rigtig brug.
-//
-// "billede" bruges på kjolekortet.
-// "billeder" bruges til swipe-galleriet.
-// De øvrige oplysninger kan bruges af personal shopperen.
+//fælles kjolekatalog til appen.
 
+//farver og beskrivelser er vurderet ud fra billederne.
+//begivenheder er inspirationsforslag, ikke faste dresscodes.
+
+//"billede" bruges på kjolekortet.
+//"billeder" bruges til swipe-galleriet.
+//de øvrige oplysninger kan bruges af personal shopperen.
+
+//hvert objekt beskriver én kjole. ID'et bruges også til koblingen til kjolens Stripe-pris i backend/server.js.
 export const kjoler = [
     {
       id: '1',
@@ -265,8 +265,7 @@ export const kjoler = [
     },
   ];
   
-  // En udgave med kun tekst og tal til personal shopperen.
-  // Lokale billedreferencer skal ikke sendes til AI'en.
+  //personal shopperen får kun katalogets tekstfelter; lokale billedfiler bliver i appen og sendes ikke til backend eller OpenAI.
   export const kjolerTilAI = kjoler.map((kjole) => ({
     id: kjole.id,
     navn: kjole.navn,

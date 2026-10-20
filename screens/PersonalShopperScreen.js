@@ -18,7 +18,7 @@ import {
 import { PersonalShopperStyle as styles } from '../styles/PersonalShopperStyle';
 import { kjoler, kjolerTilAI } from '../Data/Kjoler';
 
-// Samme backend-adresse som scripts/start.js giver betalingsskærmen.
+//samme backend-adresse som scripts/start.js giver betalingsskærmen.
 const SERVER_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const eksempler = [
@@ -28,6 +28,7 @@ const eksempler = [
 ];
 
 export default function PersonalShopperScreen({ navigation }) {
+  //formular, svar, produktforslag og fejl vises separat i brugerfladen.
   const [besked, setBesked] = useState('');
   const [venter, setVenter] = useState(false);
   const [svar, setSvar] = useState('');
@@ -37,10 +38,12 @@ export default function PersonalShopperScreen({ navigation }) {
   const aktivAnmodning = useRef(null);
 
   useEffect(() => {
+    //afbryder netværkskaldet, hvis brugeren forlader skærmen under ventetid.
     return () => aktivAnmodning.current?.abort();
   }, []);
 
   async function sendBesked() {
+    //ignorerer tom tekst og dobbelttryk, mens et spørgsmål allerede behandles.
     if (!besked.trim() || aktivAnmodning.current) return;
 
     if (!SERVER_URL) {
@@ -59,9 +62,11 @@ export default function PersonalShopperScreen({ navigation }) {
     const controller = new AbortController();
     aktivAnmodning.current = controller;
 
+    //afslutter kald, der ikke svarer inden for ét minut.
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
+      //sender spørgsmålet og tekstkataloget til backend; billedfiler sendes ikke.
       const response = await fetch(`${SERVER_URL}/shopper`, {
         method: 'POST',
         headers: {
@@ -87,7 +92,8 @@ export default function PersonalShopperScreen({ navigation }) {
         throw new Error('Serveren returnerede et ugyldigt svar.');
       }
 
-      // Billeder og priser hentes fra appens eget katalog.
+      //billeder og priser hentes fra appens eget katalog.
+      //matcher AI'ens ID'er med appens katalog for at hente billeder og priser lokalt.
       const kjoleforslag = data.forslag
         .map((forslag) => {
           const kjole = kjoler.find(

@@ -40,6 +40,7 @@ return afrundet % 1 === 0
 // LÆSER BACKEND-SVAR
 
 async function laesJsonSvar(response) {
+// Læser først tekst, så en HTML-fejlside kan vises som en forståelig fejl.
 const tekst = await response.text();
 
 try {
@@ -98,6 +99,7 @@ const response = await fetch(
 `${SERVER_URL}/checkout-status/${encodeURIComponent(sessionId)}`
 );
 
+// Appen viser kun succes, hvis backend har fået betalingsstatus fra Stripe.
 const data = await laesJsonSvar(response);
 
 if (!response.ok) {
@@ -189,6 +191,7 @@ throw new Error(
 // SENDER BESTILLINGEN TIL BACKEND
 // Backend opretter Stripe Checkout og gemmer
 // bestillingen i Firebase Firestore.
+// Appen sender valgene med, men backend kontrollerer dem og priserne igen.
 
 const response = await fetch(
 `${SERVER_URL}/create-checkout-session`,
@@ -221,12 +224,13 @@ data.error ||
 );
 }
 
-// STRIPE CHECKOUT
-// Åbner betalingsbrowseren inde i appen
+//STRIPE CHECKOUT
+//åbner betalingsbrowseren inde i appen
 
 await WebBrowser.openBrowserAsync(data.url);
 
-// KONTROLLERER BETALING EFTER BROWSEREN LUKKES
+//KONTROLLERER BETALING EFTER BROWSEREN LUKKES
+//at lukke browseren tæller ikke som en gennemført betaling.
 
 const betalt = await kontrollerBetaling(
 data.sessionId
@@ -234,7 +238,7 @@ data.sessionId
 
 if (betalt) {
 
-// Stripe har bekræftet betalingen
+//stripe har bekræftet betalingen
 setBetalingGennemfoert(true);
 
 } else {
@@ -265,7 +269,7 @@ setVenter(false);
 }
 }
 
-// BETALINGSBEKRÆFTELSE
+//BETALINGSBEKRÆFTELSE
 
 if (betalingGennemfoert) {
 
@@ -326,7 +330,7 @@ Tak for din bestilling!
 );
 }
 
-// BETALINGSSIDENS DESIGN
+//BETALINGSSIDENS DESIGN
 
 return (
 <ScrollView
