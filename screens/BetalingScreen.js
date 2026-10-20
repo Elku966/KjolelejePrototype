@@ -16,6 +16,10 @@ import {
 } from '../styles/GlobalStyle';
 import beskyttelseConfig from '../Data/Beskyttelse.json';
 
+// NY KODE START - Stripe betalingsside
+
+// Henter backend-adressen fra den automatiske opstart.
+// Underviseren behøver derfor ikke ændre IP-adressen i koden.
 const SERVER_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const GULD = '#8A6A3F';
@@ -28,6 +32,8 @@ function formaterPris(beloeb) {
     : afrundet.toFixed(2).replace('.', ',');
 }
 
+// Læser serversvaret sikkert, så en HTML-fejlside ikke giver
+// den uforståelige fejl "JSON Parse error: Unexpected character: <".
 async function laesJsonSvar(response) {
   const tekst = await response.text();
 
@@ -41,26 +47,35 @@ async function laesJsonSvar(response) {
   }
 }
 
-export default function BetalingScreen({ kurv }) {
+export default function BetalingScreen({ kurv, route }) {
+  const kunde = route.params?.kunde;
+
+  // Holder styr på, om betalingen behandles.
   const [venter, setVenter] = useState(false);
+
+  // NY KODE START - Betalingsbekræftelse
+  // Gemmer om betalingen er bekræftet af Stripe.
   const [betalingGennemfoert, setBetalingGennemfoert] =
     useState(false);
+  // NY KODE SLUT - Betalingsbekræftelse
 
+  // Genbruger prisberegningen fra KurvScreen.js.
   const samletLejepris = kurv.reduce((sum, vare) => {
     return sum + Number(vare.kjole.pris);
   }, 0);
-
   const samletBeskyttelsesgebyr = kurv.reduce((sum, vare) => {
     if (!vare.beskyttelse) return sum;
-
     return sum + Math.round(
       Number(vare.kjole.pris) * BESKYTTELSE_PROCENT * 100
     ) / 100;
   }, 0);
-
   const samletPris = samletLejepris + samletBeskyttelsesgebyr;
 
+  // NY KODE START - Kontrol af betalingsstatus
+  // Kontakter backend for at kontrollere,
+  // om Stripe har registreret betalingen.
   async function kontrollerBetaling(sessionId) {
+
     const response = await fetch(
       `${SERVER_URL}/checkout-status/${encodeURIComponent(sessionId)}`
     );
@@ -68,15 +83,16 @@ export default function BetalingScreen({ kurv }) {
     const data = await laesJsonSvar(response);
 
     if (!response.ok) {
-      throw new Error(
-        data.error || 'Kunne ikke kontrollere betalingsstatus.'
-      );
+      throw new Error(data.error || 'Kunne ikke kontrollere betalingsstatus.');
     }
 
     return data.betalt === true;
   }
+  // NY KODE SLUT - Kontrol af betalingsstatus
 
+  // Opretter én samlet Stripe-betaling for kurven.
   async function gaaTilStripe() {
+
     if (kurv.length === 0 || venter || betalingGennemfoert) {
       return;
     }
@@ -89,14 +105,25 @@ export default function BetalingScreen({ kurv }) {
       return;
     }
 
+    if (!kunde) {
+      Alert.alert(
+        'Oplysninger mangler',
+        'Gå tilbage til kurven og udfyld dine kontaktoplysninger.'
+      );
+      return;
+    }
+
     setVenter(true);
 
     try {
+
+      // Henter kjolernes ID'er fra kurven.
       const kjoleIds = kurv.map((vare) => vare.kjole.id);
       const beskyttelseIds = kurv
         .filter((vare) => vare.beskyttelse)
         .map((vare) => vare.kjole.id);
 
+      // Sender bestillingen til backend.
       const response = await fetch(
         `${SERVER_URL}/create-checkout-session`,
         {
@@ -104,7 +131,7 @@ export default function BetalingScreen({ kurv }) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ kjoleIds, beskyttelseIds }),
+          body: JSON.stringify({ kjoleIds, beskyttelseIds, kunde }),
         }
       );
 
@@ -116,7 +143,20 @@ export default function BetalingScreen({ kurv }) {
         );
       }
 
-      await WebBrowser.openBrowserAsync(data.url);
+      // NY KODE START - Åbn Stripe Checkout
+      // Åbner Stripe i en browser inde i appen.
+      // Kunden lukker selv browseren efter betalingen.
+      const browserResult = await WebBrowser.openBrowserAsync(
+        data.url
+      );
+      // NY KODE SLUT - Åbn Stripe Checkout
+
+      // NY KODE START - Kontrollér betaling efter browseren
+      // Når kunden lukker browseren, undersøges
+      // betalingsstatus direkte hos Stripe.
+      //
+      // Vi viser aldrig en succesbesked alene,
+      // fordi browseren er blevet lukket.
 
       const betalt = await kontrollerBetaling(data.sessionId);
 
@@ -128,17 +168,29 @@ export default function BetalingScreen({ kurv }) {
           'Stripe har endnu ikke bekræftet betalingen. Kontroller betalingsstatus, før du forsøger igen.'
         );
       }
+
+      // NY KODE SLUT - Kontrollér betaling efter browseren
+
     } catch (error) {
+
+      // NY KODE START - Stripe fejlfinding
+      // Udskriver fejl i Expo-terminalen.
       console.log('Stripe-fejl i appen:', error.message);
+      // NY KODE SLUT - Stripe fejlfinding
 
       Alert.alert(
         'Betalingsfejl',
         error.message || 'Prøv igen senere.'
       );
+
     } finally {
       setVenter(false);
     }
   }
+
+  // NY KODE START - Vis bekræftelse efter betaling
+  // Denne side vises kun, hvis backend har bekræftet,
+  // at Stripe registrerer betalingen som gennemført.
 
   if (betalingGennemfoert) {
     return (
@@ -152,6 +204,7 @@ export default function BetalingScreen({ kurv }) {
           },
         ]}
       >
+
         <Text
           style={{
             fontSize: 28,
@@ -192,20 +245,25 @@ export default function BetalingScreen({ kurv }) {
         >
           Tak for din bestilling!
         </Text>
+
       </View>
     );
   }
+
+  // NY KODE SLUT - Vis bekræftelse efter betaling
 
   return (
     <ScrollView
       style={GlobalStyle.container}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
+
       <Text style={GlobalStyle.title}>
         Betaling
       </Text>
 
       <View style={GlobalStyle.card}>
+
         <Text
           style={{
             fontSize: 18,
@@ -224,16 +282,16 @@ export default function BetalingScreen({ kurv }) {
             {vare.beskyttelse && (
               <Text>
                 {'\n'}Beskyttelse ({beskyttelseConfig.procent} %):{' '}
-                {formaterPris(
-                  Number(vare.kjole.pris) * BESKYTTELSE_PROCENT
-                )} kr.
+                {formaterPris(Number(vare.kjole.pris) * BESKYTTELSE_PROCENT)} kr.
               </Text>
             )}
           </Text>
         ))}
+
       </View>
 
       <View style={GlobalStyle.card}>
+
         <Text
           style={{
             fontSize: 18,
@@ -257,6 +315,7 @@ export default function BetalingScreen({ kurv }) {
         <Text style={{ marginTop: 8 }}>
           Fragt er ikke medregnet. Valgt beskyttelse er inkluderet i totalen.
         </Text>
+
       </View>
 
       <Pressable
@@ -270,7 +329,9 @@ export default function BetalingScreen({ kurv }) {
         ]}
       >
         <Text style={GlobalStyle.buttonText}>
-          {venter ? 'Kontrollerer betaling...' : 'Betal med Stripe'}
+          {venter
+            ? 'Kontrollerer betaling...'
+            : 'Betal med Stripe'}
         </Text>
       </Pressable>
 
@@ -291,6 +352,9 @@ export default function BetalingScreen({ kurv }) {
         Betalingen gennemføres sikkert hos Stripe.
         Dette er en testbetaling i Sandbox.
       </Text>
+
     </ScrollView>
   );
 }
+
+// NY KODE SLUT - Stripe betalingsside

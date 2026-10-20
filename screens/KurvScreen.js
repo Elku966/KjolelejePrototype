@@ -1,8 +1,10 @@
 import React from 'react';
 import {
+  Alert,
   View,
   ScrollView,
   Pressable,
+  TextInput,
 } from 'react-native';
 
 import { Image } from 'expo-image';
@@ -13,8 +15,19 @@ import {
 } from '../styles/GlobalStyle';
 import beskyttelseConfig from '../Data/Beskyttelse.json';
 
+// Appens eksisterende guldfarve
 const GULD = '#8A6A3F';
 const BESKYTTELSE_PROCENT = Number(beskyttelseConfig.procent) / 100;
+
+const tomKunde = {
+  fornavn: '',
+  efternavn: '',
+  adresse: '',
+  by: '',
+  postnummer: '',
+  email: '',
+  telefon: '',
+};
 
 function formaterPris(beloeb) {
   const afrundet = Math.round(Number(beloeb) * 100) / 100;
@@ -24,22 +37,84 @@ function formaterPris(beloeb) {
 }
 
 export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
+  const [kunde, setKunde] = React.useState(tomKunde);
+
+
+  // Udregner den samlede lejepris for kjolerne
   const samletLejepris = kurv.reduce((sum, vare) => {
     return sum + Number(vare.kjole.pris);
   }, 0);
-
   const samletBeskyttelsesgebyr = kurv.reduce((sum, vare) => {
     if (!vare.beskyttelse) return sum;
-
     return sum + Math.round(
       Number(vare.kjole.pris) * BESKYTTELSE_PROCENT * 100
     ) / 100;
   }, 0);
-
   const samletPris = samletLejepris + samletBeskyttelsesgebyr;
 
+  // Åbner Stripe-betalingssiden.
   function gaaTilBetaling() {
-    navigation.navigate('Betaling');
+    const manglerOplysninger = Object.values(kunde).some(
+      (vaerdi) => !vaerdi.trim()
+    );
+
+    if (manglerOplysninger) {
+      Alert.alert(
+        'Mangler oplysninger',
+        'Udfyld alle kontakt- og adressefelter for at fortsætte.'
+      );
+      return;
+    }
+
+    const emailErGyldig = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(kunde.email.trim());
+    if (!emailErGyldig) {
+      Alert.alert('Tjek din e-mail', 'Skriv en gyldig e-mailadresse.');
+      return;
+    }
+
+    if (!/^\d{4}$/.test(kunde.postnummer.trim())) {
+      Alert.alert('Tjek postnummer', 'Skriv et dansk postnummer på 4 cifre.');
+      return;
+    }
+
+    const antalTelefonCifre = kunde.telefon.replace(/\D/g, '').length;
+    if (antalTelefonCifre < 8) {
+      Alert.alert('Tjek telefonnummer', 'Skriv et telefonnummer med mindst 8 cifre.');
+      return;
+    }
+
+    navigation.navigate('Betaling', {
+      kunde: Object.fromEntries(
+        Object.entries(kunde).map(([felt, vaerdi]) => [felt, vaerdi.trim()])
+      ),
+    });
+  }
+
+  function opdaterKunde(felt, vaerdi) {
+    setKunde((tidligere) => ({ ...tidligere, [felt]: vaerdi }));
+  }
+
+  function kundeFelt(label, felt, egenskaber = {}) {
+    return (
+      <View key={felt} style={{ marginTop: 12 }}>
+        <Text style={{ marginBottom: 6 }}>{label}</Text>
+        <TextInput
+          value={kunde[felt]}
+          onChangeText={(vaerdi) => opdaterKunde(felt, vaerdi)}
+          placeholder={label}
+          style={{
+            minHeight: 48,
+            paddingHorizontal: 12,
+            borderWidth: 1,
+            borderColor: '#DED1BF',
+            borderRadius: 8,
+            backgroundColor: '#FFFFFF',
+            color: '#493B2B',
+          }}
+          {...egenskaber}
+        />
+      </View>
+    );
   }
 
   return (
@@ -47,24 +122,31 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
       style={GlobalStyle.container}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
+
       <Text style={GlobalStyle.title}>
         Min kurv
       </Text>
 
+      {/* Hvis kunden endnu ikke har valgt en kjole */}
       {kurv.length === 0 ? (
         <View style={GlobalStyle.card}>
-          <Text>Din kurv er tom.</Text>
+          <Text>
+            Din kurv er tom.
+          </Text>
           <Text style={{ marginTop: 8 }}>
             Gå til Kjoler og find din favoritkjole.
           </Text>
         </View>
       ) : (
         <>
+          {/* Viser alle kjoler, kunden har tilføjet */}
           {kurv.map((vare) => (
             <View
               key={vare.kurvId}
               style={GlobalStyle.card}
             >
+
+              {/* Kjolens billede */}
               <Image
                 source={vare.kjole.billede}
                 contentFit="contain"
@@ -75,6 +157,7 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                 }}
               />
 
+              {/* Kjolens navn */}
               <Text style={GlobalStyle.dressName}>
                 {vare.kjole.navn}
               </Text>
@@ -102,13 +185,7 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
               </Text>
 
               {vare.beskyttelse && (
-                <Text
-                  style={{
-                    marginTop: 6,
-                    color: GULD,
-                    fontWeight: 'bold',
-                  }}
-                >
+                <Text style={{ marginTop: 6, color: GULD, fontWeight: 'bold' }}>
                   Beskyttelsesgebyr ({beskyttelseConfig.procent} %):{' '}
                   {formaterPris(
                     Number(vare.kjole.pris) * BESKYTTELSE_PROCENT
@@ -116,6 +193,7 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                 </Text>
               )}
 
+              {/* Kunden kan fjerne kjolen fra kurven */}
               <Pressable
                 onPress={() => fjernFraKurv(vare.kurvId)}
                 style={{
@@ -135,10 +213,30 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
                   Fjern fra kurv
                 </Text>
               </Pressable>
+
             </View>
           ))}
 
           <View style={GlobalStyle.card}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold' }}>
+              Dine oplysninger
+            </Text>
+            <Text style={{ marginTop: 8 }}>
+              Vi bruger oplysningerne til din bestilling.
+            </Text>
+
+            {kundeFelt('Fornavn', 'fornavn', { autoCapitalize: 'words', autoComplete: 'given-name', returnKeyType: 'next' })}
+            {kundeFelt('Efternavn', 'efternavn', { autoCapitalize: 'words', autoComplete: 'family-name', returnKeyType: 'next' })}
+            {kundeFelt('Adresse', 'adresse', { autoCapitalize: 'words', autoComplete: 'street-address', returnKeyType: 'next' })}
+            {kundeFelt('By', 'by', { autoCapitalize: 'words', autoComplete: 'address-level2', returnKeyType: 'next' })}
+            {kundeFelt('Postnummer', 'postnummer', { keyboardType: 'number-pad', maxLength: 4, autoComplete: 'postal-code', returnKeyType: 'next' })}
+            {kundeFelt('E-mail', 'email', { keyboardType: 'email-address', autoCapitalize: 'none', autoCorrect: false, autoComplete: 'email', returnKeyType: 'next' })}
+            {kundeFelt('Telefon', 'telefon', { keyboardType: 'phone-pad', autoComplete: 'tel', returnKeyType: 'done' })}
+          </View>
+
+          {/* Viser den samlede pris */}
+          <View style={GlobalStyle.card}>
+
             <Text
               style={{
                 fontSize: 20,
@@ -162,8 +260,10 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
             <Text style={{ marginTop: 8 }}>
               Fragt er ikke medregnet. Valgt beskyttelse er lagt til.
             </Text>
+
           </View>
 
+          {/* Knappen til betaling */}
           <Pressable
             onPress={gaaTilBetaling}
             style={GlobalStyle.button}
@@ -172,8 +272,10 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
               Gå til betaling
             </Text>
           </Pressable>
+
         </>
       )}
+
     </ScrollView>
   );
 }
