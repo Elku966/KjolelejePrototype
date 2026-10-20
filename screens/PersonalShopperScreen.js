@@ -18,8 +18,8 @@ import {
 import { PersonalShopperStyle as styles } from '../styles/PersonalShopperStyle';
 import { kjoler, kjolerTilAI } from '../Data/Kjoler';
 
-// Erstat DIN_MAC_IP med din Macs lokale IP-adresse.
-const SERVER_URL = 'http://172.20.10.3';
+// Samme backend-adresse som scripts/start.js giver betalingsskærmen.
+const SERVER_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const eksempler = [
   'Vis mig alle brune kjoler',
@@ -43,9 +43,9 @@ export default function PersonalShopperScreen({ navigation }) {
   async function sendBesked() {
     if (!besked.trim() || aktivAnmodning.current) return;
 
-    if (SERVER_URL.includes('DIN_MAC_IP')) {
+    if (!SERVER_URL) {
       setFejl(
-        'Indsæt din Macs IP-adresse i SERVER_URL øverst i denne fil.'
+        'Backend-adressen mangler. Start appen med scripts/start.js.'
       );
       return;
     }

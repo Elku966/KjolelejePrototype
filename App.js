@@ -11,6 +11,7 @@ import DetaljerScreen from './screens/DetaljerScreen';
 import BestillingScreen from './screens/BestillingScreen';
 import KurvScreen from './screens/KurvScreen';
 import PersonalShopperScreen from './screens/PersonalShopperScreen';
+import BetalingScreen from './screens/BetalingScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -66,6 +67,7 @@ export default function App() {
               Detaljer: ['image', 'image-outline'],
               Bestilling: ['bag-handle', 'bag-handle-outline'],
               Kurv: ['cart', 'cart-outline'],
+              Betaling: ['card', 'card-outline'],
             };
 
             const ikon = ikoner[route.name];
@@ -128,6 +130,22 @@ export default function App() {
               {...props}
               kurv={kurv}
               fjernFraKurv={fjernFraKurv}
+            />
+          )}
+        </Tab.Screen>
+
+        {/* Betalingssiden åbnes fra kurven, ikke fra fanebjælken. */}
+        <Tab.Screen
+          name="Betaling"
+          options={{
+            title: 'Betaling',
+            tabBarButton: () => null,
+          }}
+        >
+          {(props) => (
+            <BetalingScreen
+              {...props}
+              kurv={kurv}
             />
           )}
         </Tab.Screen>

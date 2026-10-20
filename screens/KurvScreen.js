@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   Pressable,
-  Alert,
 } from 'react-native';
 
 import { Image } from 'expo-image';
@@ -16,19 +15,16 @@ import {
 // Appens eksisterende guldfarve
 const GULD = '#8A6A3F';
 
-export default function KurvScreen({ kurv, fjernFraKurv }) {
+export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
 
   // Udregner den samlede lejepris for kjolerne
   const samletPris = kurv.reduce((sum, vare) => {
     return sum + Number(vare.kjole.pris);
   }, 0);
 
-  // Betalingsknappen er foreløbig kun en demo
+  // Åbner Stripe-betalingssiden.
   function gaaTilBetaling() {
-    Alert.alert(
-      'Gå til betaling',
-      'Dette er en prototype. Betalingsfunktionen er endnu ikke implementeret.'
-    );
+    navigation.navigate('Betaling');
   }
 
   return (
