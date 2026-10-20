@@ -42,3 +42,7 @@ yarn-error.*
 
 backend/.env
 backend/node_modules/
+
+# Firebase private keys
+backend/kjolelejeprototype-firebase-adminsdk-fbsvc-1cb30e2d18.json
+backend/*firebase-adminsdk*.json
