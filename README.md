@@ -1,3 +1,17 @@
+Screen forside - Elif  
+
+Screen til kurv – Amalie 
+
+Screen til betaling samt implementering af Stripe - Neda 
+
+Knap på forsiden til at se kjoler -Elif 
+
+Knap til at tilføje en kjole til kurv - Amalie 
+
+Database firebase - Amalie  
+
+Ai Personal Shopper herunder implementering af OpenAi - Elif og Amalie 
+
 # Luxury Rentals
 
 ## Pakker
