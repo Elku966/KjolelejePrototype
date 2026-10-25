@@ -12,6 +12,8 @@ Database firebase - Amalie
 
 Ai Personal Shopper herunder implementering af OpenAi - Elif og Amalie 
 
+Videolink: https://youtu.be/arvdatxsJMw
+
 # Luxury Rentals
 
 ## Pakker
