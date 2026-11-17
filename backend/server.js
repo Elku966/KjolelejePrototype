@@ -3,11 +3,18 @@ const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const OpenAI = require('openai');
 const Stripe = require('stripe');
+const db = require('./firebase');
+const { FieldValue } = require('firebase-admin/firestore');
 
 //firebase-bestillinger
 const {
 gemBestilling,
 bekraeftBetaling,
+udloebBestilling,
+tjekLedighed,
+reserverKurv,
+frigivKurv,
+hentBestillingsbekraeftelse,
 } = require('./bestillinger');
 
 //indlæser Stripe og OpenAI miljøvariabler
@@ -20,6 +27,8 @@ const stripeKey = process.env.STRIPE_SECRET_KEY;
 
 const beskyttelseConfig = require('../Data/Beskyttelse.json');
 const beskyttelseProcent = Number(beskyttelseConfig.procent) / 100;
+const prisConfig = require('../Data/PrisKonfiguration.json');
+const fragtPrOrdreOre = Math.round(Number(prisConfig.fragtPrOrdre) * 100);
 
 //STRIPE OPSÆTNING
 
@@ -53,6 +62,39 @@ const stripeProduktNavne = {
 '7': 'Midnight Sparkle',
 '8': 'Burgundy Romance',
 };
+
+//Tilgængelige størrelser pr. kjole; bruges til at validere lagerforespørgsler.
+const stripeProduktStoerrelser = {
+'1': ['S', 'M', 'L'],
+'2': ['XS', 'S', 'M'],
+'3': ['M', 'L'],
+'4': ['S', 'M', 'L'],
+'5': ['XS', 'S', 'M'],
+'6': ['S', 'M', 'L'],
+'7': ['XS', 'S', 'M'],
+'8': ['S', 'M', 'L'],
+};
+
+function gyldigISODate(dato) {
+if (typeof dato !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) {
+return false;
+}
+
+const datoObjekt = new Date(`${dato}T00:00:00.000Z`);
+return !Number.isNaN(datoObjekt.getTime()) &&
+datoObjekt.toISOString().slice(0, 10) === dato;
+}
+
+function datoDKTilISO(dato) {
+const match = typeof dato === 'string'
+? dato.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+: null;
+
+if (!match) return null;
+
+const iso = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+return gyldigISODate(iso) ? iso : null;
+}
 
 //OPENAI OPSÆTNING
 
@@ -110,6 +152,8 @@ event.type === 'checkout.session.completed' ||
 event.type === 'checkout.session.async_payment_succeeded'
 ) {
 await bekraeftBetaling(event.data.object);
+} else if (event.type === 'checkout.session.expired') {
+await udloebBestilling(event.data.object);
 }
 
 return res.sendStatus(200);
@@ -129,6 +173,96 @@ app.use(express.json({ limit: '100kb' }));
 app.get('/health', (req, res) => {
 res.json({ ok: true });
 });
+
+// Gemmer kontaktformularens besked i Firestore uden at sende den til OpenAI.
+app.post(
+'/kontakt',
+rateLimit({
+windowMs: 60 * 60 * 1000,
+limit: 10,
+standardHeaders: 'draft-7',
+legacyHeaders: false,
+message: { error: 'Du har sendt mange beskeder. Prøv igen senere.' },
+}),
+async (req, res) => {
+const { harOrdre, navn, email, ordrenummer, telefon, spoergsmaal } = req.body || {};
+const rensetNavn = typeof navn === 'string' ? navn.trim() : '';
+const rensetEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+const rensetSpoergsmaal = typeof spoergsmaal === 'string' ? spoergsmaal.trim() : '';
+const rensetOrdrenummer = typeof ordrenummer === 'string' ? ordrenummer.trim() : '';
+const rensetTelefon = typeof telefon === 'string' ? telefon.trim() : '';
+
+if (
+typeof harOrdre !== 'boolean' ||
+!rensetNavn || rensetNavn.length > 100 ||
+!/^\S+@\S+\.\S+$/.test(rensetEmail) || rensetEmail.length > 254 ||
+!rensetSpoergsmaal || rensetSpoergsmaal.length > 2000 ||
+(harOrdre && !/^\d{4}$/.test(rensetOrdrenummer)) ||
+(!harOrdre && rensetTelefon.length > 30)
+) {
+return res.status(400).json({ error: 'Kontrollér felterne, og prøv igen.' });
+}
+
+try {
+const kontakt = {
+harOrdre,
+navn: rensetNavn,
+email: rensetEmail,
+spoergsmaal: rensetSpoergsmaal,
+status: 'ny',
+oprettetDato: FieldValue.serverTimestamp(),
+};
+
+if (harOrdre) {
+kontakt.ordrenummer = rensetOrdrenummer;
+} else if (rensetTelefon) {
+kontakt.telefon = rensetTelefon;
+}
+
+await db.collection('kontaktbeskeder').add(kontakt);
+return res.status(201).json({ ok: true });
+} catch (error) {
+console.error('Kontaktbesked kunne ikke gemmes:', error.message);
+return res.status(503).json({
+error: 'Vi kunne ikke gemme beskeden lige nu. Prøv igen senere.',
+});
+}
+}
+);
+
+//Dato-check ved valg i bestillingsskærmen. Checkout tjekker og låser igen atomisk.
+app.post(
+'/availability',
+rateLimit({
+windowMs: 15 * 60 * 1000,
+limit: 120,
+standardHeaders: 'draft-7',
+legacyHeaders: false,
+}),
+async (req, res) => {
+const { kjoleId, stoerrelse, dato } = req.body || {};
+const id = String(kjoleId || '');
+const size = typeof stoerrelse === 'string' ? stoerrelse.trim().toUpperCase() : '';
+
+if (
+!Object.hasOwn(stripeProdukter, id) ||
+!stripeProduktStoerrelser[id].includes(size) ||
+!gyldigISODate(dato)
+) {
+return res.status(400).json({ error: 'Kjole, størrelse eller dato er ugyldig.' });
+}
+
+try {
+const ledig = await tjekLedighed({ kjoleId: id, stoerrelse: size, datoISO: dato });
+return res.json({ ledig });
+} catch (error) {
+console.error('Tilgængelighedstjek fejlede:', error.message);
+return res.status(503).json({
+error: 'Kunne ikke kontrollere ledighed lige nu. Prøv igen om lidt.',
+});
+}
+}
+);
 
 // RATE LIMIT TIL PERSONAL SHOPPER
 
@@ -668,6 +802,7 @@ kjoleIds,
 beskyttelseIds = [],
 kunde,
 kurvValg,
+forventetTotalOre,
 } = req.body || {};
 
 //KONTROLLERER KUNDEOPLYSNINGER
@@ -719,6 +854,17 @@ Object.hasOwn(stripeProdukter, id)
 ) {
 return res.status(400).json({
 error: 'Kurven indeholder ugyldige kjoler.',
+});
+}
+
+if (
+!Number.isSafeInteger(forventetTotalOre) ||
+forventetTotalOre < 0 ||
+!Number.isSafeInteger(fragtPrOrdreOre) ||
+fragtPrOrdreOre < 0
+) {
+return res.status(400).json({
+error: 'Den viste total eller fragtindstillingen er ugyldig.',
 });
 }
 
@@ -775,8 +921,11 @@ vare.kjoleId === kjoleIds[index] &&
 typeof vare.stoerrelse === 'string' &&
 vare.stoerrelse.trim().length > 0 &&
 vare.stoerrelse.length <= 20 &&
+stripeProduktStoerrelser[vare.kjoleId]?.includes(
+vare.stoerrelse.trim().toUpperCase()
+) &&
 typeof vare.dato === 'string' &&
-/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(vare.dato) &&
+datoDKTilISO(vare.dato) !== null &&
 typeof vare.beskyttelse === 'boolean'
 );
 
@@ -804,17 +953,38 @@ error:
 
 // OPRETTER STRIPE LINE ITEMS
 
+// Henter de autoritative Stripe-priser og bruger dem til at sikre,
+// at beløbet vist i appen svarer til det, Checkout vil opkræve.
+const stripePrisPerKjole = new Map();
+await Promise.all(
+  [...new Set(kjoleIds)].map(async (id) => {
+    const pris = await stripe.prices.retrieve(stripeProdukter[id]);
+
+    if (
+      !Number.isInteger(pris.unit_amount) ||
+      pris.unit_amount <= 0 ||
+      pris.currency !== 'dkk'
+    ) {
+      throw new Error('Stripe-prisen for en kjole er ugyldig.');
+    }
+
+    stripePrisPerKjole.set(id, pris);
+  })
+);
+
+const samletLejeprisOre = kjoleIds.reduce(
+  (sum, id) => sum + stripePrisPerKjole.get(id).unit_amount,
+  0
+);
+
 const line_items = kjoleIds.map((id) => ({
 price: stripeProdukter[id],
 quantity: 1,
 }));
 
-// Henter priser fra Stripe
-// Den autoritative Stripe-pris bruges til at beregne gebyret i øre på serveren.
-const priserMedBeskyttelse = await Promise.all(
-beskyttelseIds.map((id) =>
-stripe.prices.retrieve(stripeProdukter[id])
-)
+// Genbruger Stripe-priserne, som allerede blev hentet til ordreberegningen.
+const priserMedBeskyttelse = beskyttelseIds.map(
+  (id) => stripePrisPerKjole.get(id)
 );
 
 priserMedBeskyttelse.forEach((pris, index) => {
@@ -852,9 +1022,58 @@ quantity: 1,
 });
 });
 
+const samletBeskyttelsesgebyrOre = priserMedBeskyttelse.reduce(
+  (sum, pris) =>
+    sum + Math.round(pris.unit_amount * beskyttelseProcent),
+  0
+);
+
+const faktiskTotalOre =
+  samletLejeprisOre +
+  samletBeskyttelsesgebyrOre +
+  fragtPrOrdreOre;
+
+if (forventetTotalOre !== faktiskTotalOre) {
+  return res.status(409).json({
+    error:
+      'Priserne i appen stemmer ikke med Stripe. Kontrollér kjolepriserne, og prøv igen.',
+  });
+}
+
+// Fragt opkræves én gang for hele ordren.
+line_items.push({
+  price_data: {
+    currency: 'dkk',
+    unit_amount: fragtPrOrdreOre,
+    product_data: {
+      name: 'Fragt',
+      description: `Fragt pr. ordre: ${prisConfig.fragtPrOrdre} kr.`,
+    },
+  },
+  quantity: 1,
+});
+
 // STRIPE RETURADRESSE
 
 const backendAdresse = findLokalBackendAdresse(req);
+
+const varer = kurvValg.map((vare) => ({
+kjoleId: vare.kjoleId,
+kjoleNavn: stripeProduktNavne[vare.kjoleId],
+stoerrelse: vare.stoerrelse.trim(),
+dato: vare.dato,
+datoISO: datoDKTilISO(vare.dato),
+beskyttelse: vare.beskyttelse,
+}));
+
+const varerTilReservation = varer.map((vare) => ({
+kjoleId: vare.kjoleId,
+stoerrelse: vare.stoerrelse,
+datoISO: vare.datoISO,
+}));
+
+//Stripe Checkout-lenken udløber efter 30 minutter, så reservationen har en fast udløbstid.
+const checkoutUdlob = Math.floor(Date.now() / 1000) + 30 * 60 + 30;
 
 // OPRETTER STRIPE SESSION
 // Stripe-hosted Checkout håndterer selve kortbetalingen; backend beholder hemmeligheden.
@@ -862,9 +1081,14 @@ const backendAdresse = findLokalBackendAdresse(req);
 const session = await stripe.checkout.sessions.create({
 mode: 'payment',
 line_items,
+expires_at: checkoutUdlob,
 
 customer_email: kunde.email.trim(),
 customer_creation: 'always',
+// Stripe sender betalingskvittering til kundens mail efter gennemført live-betaling.
+payment_intent_data: {
+receipt_email: kunde.email.trim(),
+},
 
 metadata: {
 fornavn: kunde.fornavn.trim(),
@@ -882,29 +1106,25 @@ cancel_url:
 `${backendAdresse}/checkout-cancel`,
 });
 
+//Låser kjole, størrelse og dato atomisk, efter at kunden får en betalingssession.
+const reservation = await reserverKurv(session, varerTilReservation);
+
+if (!reservation.ledig) {
+await stripe.checkout.sessions.expire(session.id);
+return res.status(409).json({
+error: 'En af kjolerne i den valgte størrelse er netop blevet reserveret på datoen. Vælg en anden dato eller størrelse.',
+});
+}
+
 // GEMMER BESTILLINGEN I FIREBASE
 // Gemmer bestillingen med session-id, så webhooken senere kan finde den igen.
-
-const varer = kurvValg.map((vare) => ({
-kjoleId: vare.kjoleId,
-
-kjoleNavn:
-stripeProduktNavne[vare.kjoleId],
-
-stoerrelse:
-vare.stoerrelse.trim(),
-
-dato: vare.dato,
-
-beskyttelse:
-vare.beskyttelse,
-}));
-
-await gemBestilling(
-session,
-kunde,
-varer
-);
+try {
+await gemBestilling(session, kunde, varer, reservation.keys);
+} catch (error) {
+await stripe.checkout.sessions.expire(session.id).catch(() => {});
+await frigivKurv(session.id, reservation.keys).catch(() => {});
+throw error;
+}
 
 // SENDER BETALINGSLINK TIL APPEN
 
@@ -945,7 +1165,7 @@ const { sessionId } = req.params;
 
 if (
 typeof sessionId !== 'string' ||
-!sessionId.startsWith('cs_test_')
+!sessionId.startsWith('cs_')
 ) {
 return res.status(400).json({
 error: 'Ugyldigt betalings-ID.',
@@ -955,12 +1175,30 @@ error: 'Ugyldigt betalings-ID.',
 const session =
 await stripe.checkout.sessions.retrieve(sessionId);
 
-res.json({
-betalt:
-session.payment_status === 'paid',
+const betalt = session.payment_status === 'paid';
+let ordre = null;
 
-status:
-session.payment_status,
+if (betalt) {
+ordre = await hentBestillingsbekraeftelse(session.id);
+
+if (!ordre || !ordre.ordrenummer) {
+return res.status(503).json({
+error: 'Betalingen er registreret, men ordreoversigten er ikke klar endnu. Prøv igen om lidt.',
+});
+}
+}
+
+res.json({
+betalt,
+status: session.payment_status,
+ordre: betalt
+? {
+...ordre,
+beloeb: session.amount_total,
+valuta: session.currency,
+kvitteringSendes: session.livemode === true,
+}
+: null,
 });
 
 } catch (error) {

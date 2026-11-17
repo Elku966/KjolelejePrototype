@@ -12,6 +12,7 @@ import BestillingScreen from './screens/BestillingScreen';
 import KurvScreen from './screens/KurvScreen';
 import PersonalShopperScreen from './screens/PersonalShopperScreen';
 import BetalingScreen from './screens/BetalingScreen';
+import KontaktScreen from './screens/KontaktScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,6 +41,14 @@ export default function App() {
     );
   }
 
+  // Fjerner kun de kurvlinjer, der indgik i den betaling, Stripe har bekræftet.
+  function fjernBetalteKurvvarer(kurvIds) {
+    const betalteIds = new Set(kurvIds);
+    setKurv((tidligereKurv) =>
+      tidligereKurv.filter((vare) => !betalteIds.has(vare.kurvId))
+    );
+  }
+
   return (
     //tab-navigationen er appens fælles ramme; kurven sendes som props til de skærme, der skal vise eller ændre den.
     <NavigationContainer>
@@ -53,6 +62,8 @@ export default function App() {
           headerTitleStyle: {
             fontFamily: elegantFont,
             fontSize: 22,
+            fontWeight: '400',
+            letterSpacing: 2,
           },
           tabBarActiveTintColor: GULD,
           tabBarInactiveTintColor: '#8C8984',
@@ -82,6 +93,7 @@ export default function App() {
               Bestilling: ['bag-handle', 'bag-handle-outline'],
               Kurv: ['cart', 'cart-outline'],
               Betaling: ['card', 'card-outline'],
+              Kontakt: ['mail', 'mail-outline'],
             };
 
             const ikon = ikoner[route.name];
@@ -152,17 +164,25 @@ export default function App() {
         </Tab.Screen>
 
         <Tab.Screen
+          name="Kontakt"
+          component={KontaktScreen}
+          options={{ headerTitle: 'Kontakt os' }}
+        />
+
+        <Tab.Screen
           name="Betaling"
           options={{
             title: 'Betaling',
             //betaling åbnes fra kurven, ikke som en almindelig fane.
             tabBarButton: () => null,
+            tabBarItemStyle: { display: 'none' },
           }}
         >
           {(props) => (
             <BetalingScreen
               {...props}
               kurv={kurv}
+              onBetalingGennemfoert={fjernBetalteKurvvarer}
             />
           )}
         </Tab.Screen>

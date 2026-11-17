@@ -16,6 +16,7 @@ GlobalStyle,
 } from '../styles/GlobalStyle';
 
 import beskyttelseConfig from '../Data/Beskyttelse.json';
+import prisConfig from '../Data/PrisKonfiguration.json';
 
 // BACKEND OPSÆTNING
 
@@ -25,6 +26,7 @@ const GULD = '#8A6A3F';
 
 const BESKYTTELSE_PROCENT =
 Number(beskyttelseConfig.procent) / 100;
+const FRAGT_PR_ORDRE = Number(prisConfig.fragtPrOrdre);
 
 // FORMATERER PRIS
 
@@ -56,7 +58,11 @@ throw new Error(
 
 // BETALINGSSKÆRM
 
-export default function BetalingScreen({ kurv, route }) {
+export default function BetalingScreen({
+kurv,
+route,
+onBetalingGennemfoert,
+}) {
 
 const kunde = route.params?.kunde;
 
@@ -68,6 +74,7 @@ const [
 betalingGennemfoert,
 setBetalingGennemfoert
 ] = useState(false);
+const [betalingsInfo, setBetalingsInfo] = useState(null);
 
 // BEREGNER PRISER
 
@@ -88,8 +95,9 @@ BESKYTTELSE_PROCENT *
 0
 );
 
+const fragtPris = kurv.length > 0 ? FRAGT_PR_ORDRE : 0;
 const samletPris =
-samletLejepris + samletBeskyttelsesgebyr;
+samletLejepris + samletBeskyttelsesgebyr + fragtPris;
 
 // KONTROLLERER BETALINGSSTATUS HOS STRIPE
 
@@ -109,7 +117,10 @@ data.error ||
 );
 }
 
-return data.betalt === true;
+return {
+betalt: data.betalt === true,
+ordre: data.ordre || null,
+};
 }
 
 // OPRETTER BESTILLING OG ÅBNER STRIPE
@@ -147,6 +158,9 @@ return;
 setVenter(true);
 
 try {
+
+// Gemmer kurvlinjerne fra denne checkout, så nye varer lagt i kurven ikke fjernes.
+const kurvIdsTilBetaling = kurv.map((vare) => vare.kurvId);
 
 // HENTER ALLE KJOLERNES ID'ER
 
@@ -207,6 +221,8 @@ kjoleIds,
 beskyttelseIds,
 kunde,
 kurvValg,
+// Backend kontrollerer dette mod Stripe-priser, fragt og beskyttelse.
+forventetTotalOre: Math.round(samletPris * 100),
 }),
 }
 );
@@ -232,13 +248,15 @@ await WebBrowser.openBrowserAsync(data.url);
 //KONTROLLERER BETALING EFTER BROWSEREN LUKKES
 //at lukke browseren tæller ikke som en gennemført betaling.
 
-const betalt = await kontrollerBetaling(
+const resultat = await kontrollerBetaling(
 data.sessionId
 );
 
-if (betalt) {
+if (resultat.betalt) {
 
 //stripe har bekræftet betalingen
+onBetalingGennemfoert?.(kurvIdsTilBetaling);
+setBetalingsInfo(resultat.ordre);
 setBetalingGennemfoert(true);
 
 } else {
@@ -274,15 +292,14 @@ setVenter(false);
 if (betalingGennemfoert) {
 
 return (
-<View
-style={[
-GlobalStyle.container,
-{
+<ScrollView
+style={GlobalStyle.container}
+contentContainerStyle={{
+flexGrow: 1,
 justifyContent: 'center',
 alignItems: 'center',
 padding: 24,
-},
-]}
+}}
 >
 
 <Text
@@ -308,14 +325,58 @@ Din betaling er registreret hos Luxury Rentals.
 
 <Text
 style={{
-fontSize: 22,
+fontSize: 16,
 fontWeight: 'bold',
 color: GULD,
 marginTop: 20,
+textAlign: 'center',
 }}
 >
-{formaterPris(samletPris)} kr.
+Ordrenummer: {betalingsInfo?.ordrenummer || '—'}
 </Text>
+
+<View
+style={{
+alignSelf: 'stretch',
+backgroundColor: 'white',
+borderRadius: 12,
+padding: 18,
+marginTop: 18,
+}}
+>
+<Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
+Ordreoversigt
+</Text>
+
+{(betalingsInfo?.varer || []).map((vare, index) => (
+<View key={`${vare.kjoleNavn}-${index}`} style={{ marginTop: 10 }}>
+<Text style={{ fontWeight: 'bold' }}>{vare.kjoleNavn}</Text>
+<Text>Størrelse: {vare.stoerrelse}</Text>
+<Text>Begivenhedsdato: {vare.dato}</Text>
+</View>
+))}
+
+<Text
+style={{
+fontSize: 20,
+fontWeight: 'bold',
+color: GULD,
+marginTop: 18,
+}}
+>
+Betalt i alt: {formaterPris((betalingsInfo?.beloeb ?? 0) / 100)} kr.
+</Text>
+</View>
+
+{betalingsInfo?.kvitteringSendes ? (
+<Text style={{ marginTop: 16, textAlign: 'center' }}>
+Stripe sender kvitteringen til {kunde?.email}.
+</Text>
+) : (
+<Text style={{ marginTop: 16, textAlign: 'center', color: '#685740' }}>
+Dette var en testbetaling. Stripe sender ikke automatisk kvitteringsmails for testbetalinger.
+</Text>
+)}
 
 <Text
 style={{
@@ -326,7 +387,7 @@ textAlign: 'center',
 Tak for din bestilling!
 </Text>
 
-</View>
+</ScrollView>
 );
 }
 
@@ -367,6 +428,8 @@ marginTop: 12,
 >
 
 {vare.kjole.navn} – {vare.kjole.pris} kr.
+{'\n'}Størrelse: {vare.stoerrelse}
+{'\n'}Begivenhedsdato: {vare.dato}
 
 {vare.beskyttelse && (
 
@@ -411,10 +474,55 @@ marginTop: 12,
 {formaterPris(samletPris)} kr.
 </Text>
 
-<Text style={{ marginTop: 8 }}>
-Fragt er ikke medregnet. Valgt beskyttelse er inkluderet i totalen.
+<Text style={{ marginTop: 12, fontSize: 16 }}>
+Lejepris: {formaterPris(samletLejepris)} kr.
 </Text>
 
+<Text style={{ marginTop: 6, fontSize: 16 }}>
+Beskyttelse: {formaterPris(samletBeskyttelsesgebyr)} kr.
+</Text>
+
+<Text style={{ marginTop: 6, fontSize: 16 }}>
+Fragt: {formaterPris(fragtPris)} kr. (én gang pr. ordre)
+</Text>
+
+<Text style={{ marginTop: 8 }}>
+Valgt beskyttelse og fragt er medregnet i totalen.
+</Text>
+
+</View>
+
+{/* LEVERING, RETURNERING OG VILKÅR */}
+
+<View style={GlobalStyle.card}>
+<Text style={{ fontSize: 18, fontWeight: 'bold' }}>
+Levering, returnering og vilkår
+</Text>
+
+<Text style={{ marginTop: 12 }}>
+Levering er planlagt til 7 dage før begivenheden. Returnér kjolen senest
+7 dage efter begivenheden. Lejeperioden er 14 dage i alt.
+</Text>
+
+<Text style={{ marginTop: 12 }}>
+Hvis sikkerhedsmærket mangler ved returnering, registreres kjolen som brugt
+til begivenheden.
+</Text>
+
+<Text style={{ marginTop: 12 }}>
+Fragt koster {formaterPris(FRAGT_PR_ORDRE)} kr. pr. ordre og er medregnet
+i totalen ovenfor.
+</Text>
+
+<Text style={{ marginTop: 12 }}>
+Afbestilling og skader: Kontakt Luxury Rentals før betaling for at få de
+gældende vilkår oplyst.
+</Text>
+
+<Text style={{ marginTop: 12 }}>
+Valgfri beskyttelse koster {beskyttelseConfig.procent} % af lejeprisen.
+Kontakt os inden betaling for at få oplyst, hvilke skader den dækker.
+</Text>
 </View>
 
 {/* BETALINGSKNAP */}

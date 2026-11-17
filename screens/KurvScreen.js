@@ -14,10 +14,12 @@ import {
   GlobalStyle,
 } from '../styles/GlobalStyle';
 import beskyttelseConfig from '../Data/Beskyttelse.json';
+import prisConfig from '../Data/PrisKonfiguration.json';
 
 //appens eksisterende guldfarve
 const GULD = '#8A6A3F';
 const BESKYTTELSE_PROCENT = Number(beskyttelseConfig.procent) / 100;
+const FRAGT_PR_ORDRE = Number(prisConfig.fragtPrOrdre);
 
 const tomKunde = {
   fornavn: '',
@@ -52,7 +54,9 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
       Number(vare.kjole.pris) * BESKYTTELSE_PROCENT * 100
     ) / 100;
   }, 0);
-  const samletPris = samletLejepris + samletBeskyttelsesgebyr;
+  const fragtPris = kurv.length > 0 ? FRAGT_PR_ORDRE : 0;
+  const samletPris =
+    samletLejepris + samletBeskyttelsesgebyr + fragtPris;
 
   //åbner Stripe-betalingssiden.
   function gaaTilBetaling() {
@@ -251,6 +255,18 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
               Samlet pris
             </Text>
 
+            <Text style={{ marginTop: 12, fontSize: 16 }}>
+              Lejepris: {formaterPris(samletLejepris)} kr.
+            </Text>
+
+            <Text style={{ marginTop: 6, fontSize: 16 }}>
+              Beskyttelse: {formaterPris(samletBeskyttelsesgebyr)} kr.
+            </Text>
+
+            <Text style={{ marginTop: 6, fontSize: 16 }}>
+              Fragt: {formaterPris(fragtPris)} kr.
+            </Text>
+
             <Text
               style={{
                 fontSize: 24,
@@ -263,7 +279,7 @@ export default function KurvScreen({ kurv, fjernFraKurv, navigation }) {
             </Text>
 
             <Text style={{ marginTop: 8 }}>
-              Fragt er ikke medregnet. Valgt beskyttelse er lagt til.
+              Fragten opkræves én gang pr. ordre. Valgt beskyttelse er medregnet.
             </Text>
 
           </View>
