@@ -46,7 +46,7 @@ export const kjoler = [
     {
       id: '2',
       navn: 'Champagne Elegance',
-      stoerrelser: 'XS, S, M',
+      stoerrelser: 'S, M, L',
       materiale: 'Glitrende mønstret overflade. Fiberindholdet er ikke oplyst.',
       pasform: 'Lang model med slæb og snøring i ryggen, som kan give mulighed for justering. Stræk er ikke oplyst.',
       maal: { bryst: null, talje: null, hofte: null, kjoleLaengde: null },
@@ -79,7 +79,7 @@ export const kjoler = [
     {
       id: '3',
       navn: 'Bronze Couture',
-      stoerrelser: 'M, L',
+      stoerrelser: 'S, M, L',
       materiale: 'Blondelignende mønster med bronzefarvede detaljer. Fiberindholdet er ikke oplyst.',
       pasform: 'Lang model med draperinger. Billederne viser styling med matchende ærmer og halstørklæde.',
       maal: { bryst: null, talje: null, hofte: null, kjoleLaengde: null },
@@ -152,7 +152,7 @@ export const kjoler = [
     {
       id: '5',
       navn: 'Silver Glamour',
-      stoerrelser: 'XS, S, M',
+      stoerrelser: 'S, M, L',
       materiale: 'Lys bund med sølvfarvet glitrende mønster. Fiberindholdet er ikke oplyst.',
       pasform: 'Lang model med hjerteformet udskæring og snøring i ryggen, som kan give mulighed for justering.',
       maal: { bryst: null, talje: null, hofte: null, kjoleLaengde: null },
@@ -222,7 +222,7 @@ export const kjoler = [
     {
       id: '7',
       navn: 'Midnight Sparkle',
-      stoerrelser: 'XS, S, M',
+      stoerrelser: 'S, M, L',
       materiale: 'Mørk overflade med glitrende mønster. Fiberindholdet er ikke oplyst.',
       pasform: 'Lang model med draperinger og matchende lange ærmer.',
       maal: { bryst: null, talje: null, hofte: null, kjoleLaengde: null },

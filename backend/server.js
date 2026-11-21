@@ -66,12 +66,12 @@ const stripeProduktNavne = {
 //Tilgængelige størrelser pr. kjole; bruges til at validere lagerforespørgsler.
 const stripeProduktStoerrelser = {
 '1': ['S', 'M', 'L'],
-'2': ['XS', 'S', 'M'],
-'3': ['M', 'L'],
+'2': ['S', 'M', 'L'],
+'3': ['S', 'M', 'L'],
 '4': ['S', 'M', 'L'],
-'5': ['XS', 'S', 'M'],
+'5': ['S', 'M', 'L'],
 '6': ['S', 'M', 'L'],
-'7': ['XS', 'S', 'M'],
+'7': ['S', 'M', 'L'],
 '8': ['S', 'M', 'L'],
 };
 
